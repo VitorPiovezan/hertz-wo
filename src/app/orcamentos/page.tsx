@@ -146,7 +146,7 @@ function BudgetsList({ onSelect }: { onSelect: (id: string) => void }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Orçamentos</h1>
-        <Link href="/hertz-wo/orcamentos/novo"><Button><Plus className="h-4 w-4 mr-1" />Novo</Button></Link>
+        <Link href="/orcamentos/novo"><Button><Plus className="h-4 w-4 mr-1" />Novo</Button></Link>
       </div>
 
       <div className="relative">

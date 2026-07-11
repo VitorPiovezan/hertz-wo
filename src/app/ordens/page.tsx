@@ -203,7 +203,7 @@ function OrdersList({ onSelect }: { onSelect: (id: string) => void }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Ordens de Serviço</h1>
-        <Link href="/hertz-wo/ordens/nova"><Button><Plus className="h-4 w-4 mr-1" />Nova OS</Button></Link>
+        <Link href="/ordens/nova"><Button><Plus className="h-4 w-4 mr-1" />Nova OS</Button></Link>
       </div>
 
       <div className="flex gap-2">
