@@ -184,8 +184,7 @@ function OrderDetail({ id, onBack }: { id: string; onBack: () => void }) {
   );
 }
 
-const STATUS_BADGE_OPTIONS: { value: OrderStatus | "all"; label: string }[] = [
-  { value: "all", label: "Todos" },
+const STATUS_BADGE_OPTIONS: { value: OrderStatus; label: string }[] = [
   { value: "pending", label: "Pendente" },
   { value: "in_review", label: "Em Aprovação" },
   { value: "in_progress", label: "Em Andamento" },
@@ -194,19 +193,22 @@ const STATUS_BADGE_OPTIONS: { value: OrderStatus | "all"; label: string }[] = [
 
 function OrdersList({ onSelect }: { onSelect: (id: string) => void }) {
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
+  const [statusFilters, setStatusFilters] = useState<OrderStatus[]>([]);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const { data: orders, isLoading } = useOrders();
 
   const hasDateFilter = dateFrom || dateTo;
 
+  const toggleStatus = (s: OrderStatus) =>
+    setStatusFilters((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
+
   const filtered = orders?.filter((o) => {
     const matchSearch =
       o.equipment_name.toLowerCase().includes(search.toLowerCase()) ||
       o.maintenance_type.toLowerCase().includes(search.toLowerCase()) ||
       (o.client?.name ?? "").toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "all" || o.status === statusFilter;
+    const matchStatus = statusFilters.length === 0 || statusFilters.includes(o.status);
     const created = new Date(o.created_at);
     const matchFrom = !dateFrom || created >= new Date(dateFrom);
     const matchTo = !dateTo || created <= new Date(dateTo + "T23:59:59");
@@ -228,12 +230,22 @@ function OrdersList({ onSelect }: { onSelect: (id: string) => void }) {
       </div>
 
       <div className="flex flex-wrap gap-1.5">
+        <button
+          onClick={() => setStatusFilters([])}
+          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors border ${
+            statusFilters.length === 0
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-background text-muted-foreground border-border hover:bg-muted"
+          }`}
+        >
+          Todos
+        </button>
         {STATUS_BADGE_OPTIONS.map((opt) => (
           <button
             key={opt.value}
-            onClick={() => setStatusFilter(opt.value)}
+            onClick={() => toggleStatus(opt.value)}
             className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors border ${
-              statusFilter === opt.value
+              statusFilters.includes(opt.value)
                 ? "bg-primary text-primary-foreground border-primary"
                 : "bg-background text-muted-foreground border-border hover:bg-muted"
             }`}

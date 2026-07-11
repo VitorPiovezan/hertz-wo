@@ -22,7 +22,6 @@ const ORDER_STATUSES: OrderStatus[] = ["pending", "in_review", "in_progress", "c
 const STATUS_FLOW: OrderStatus[] = ["pending", "in_review", "in_progress", "completed"];
 
 const FILTER_OPTIONS = [
-  { value: "all", label: "Todos" },
   { value: "pending", label: "Pendente" },
   { value: "in_review", label: "Em Aprovação" },
   { value: "in_progress", label: "Em Andamento" },
@@ -58,15 +57,25 @@ function StatsCards() {
   );
 }
 
-function StatusFilterBadges({ filter, onFilter }: { filter: string; onFilter: (v: string) => void }) {
+function StatusFilterBadges({ filters, onToggle, onClear }: { filters: string[]; onToggle: (v: string) => void; onClear: () => void }) {
   return (
     <div className="flex flex-wrap gap-1.5">
+      <button
+        onClick={onClear}
+        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors border ${
+          filters.length === 0
+            ? "bg-primary text-primary-foreground border-primary"
+            : "bg-background text-muted-foreground border-border hover:bg-muted"
+        }`}
+      >
+        Todos
+      </button>
       {FILTER_OPTIONS.map((opt) => (
         <button
           key={opt.value}
-          onClick={() => onFilter(opt.value)}
+          onClick={() => onToggle(opt.value)}
           className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors border ${
-            filter === opt.value
+            filters.includes(opt.value)
               ? "bg-primary text-primary-foreground border-primary"
               : "bg-background text-muted-foreground border-border hover:bg-muted"
           }`}
@@ -147,17 +156,19 @@ function OrderAccordion({ order }: { order: ServiceOrder }) {
   );
 }
 
-function ListView({ filter }: { filter: string }) {
+function ListView({ filters }: { filters: string[] }) {
   const router = useRouter();
   const { data: orders, isLoading: lo } = useOrders();
   const { data: budgets, isLoading: lb } = useBudgets();
   const createOrder = useCreateOrder();
 
-  const showBudgets = filter === "all" || filter === "budget";
-  const showOrders = filter === "all" || filter !== "budget";
+  const noFilter = filters.length === 0;
+  const orderStatuses = filters.filter((f) => f !== "budget");
+  const showBudgets = noFilter || filters.includes("budget");
+  const showOrders = noFilter || orderStatuses.length > 0;
 
   const filteredOrders = orders?.filter((o) =>
-    filter === "all" || filter === "budget" ? true : o.status === filter
+    noFilter || orderStatuses.length === 0 ? true : orderStatuses.includes(o.status)
   ) ?? [];
 
   const handleCreateOS = (b: NonNullable<typeof budgets>[0]) => {
@@ -281,16 +292,17 @@ function KanbanOrderCard({ order }: { order: ServiceOrder }) {
   );
 }
 
-function KanbanView({ filter }: { filter: string }) {
+function KanbanView({ filters }: { filters: string[] }) {
   const { data: orders, isLoading } = useOrders();
 
   if (isLoading) {
     return <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-64 rounded-lg bg-muted animate-pulse" />)}</div>;
   }
 
+  const orderStatuses = filters.filter((f) => f !== "budget");
   const visibleStatuses = ORDER_STATUSES.filter((status) => {
-    if (filter === "all" || filter === "budget") return true;
-    return status === filter;
+    if (filters.length === 0 || (filters.includes("budget") && orderStatuses.length === 0)) return true;
+    return orderStatuses.includes(status);
   });
 
   return (
@@ -314,7 +326,7 @@ function KanbanView({ filter }: { filter: string }) {
 }
 
 export default function HomePage() {
-  const { homeView, setHomeView, homeStatusFilter, setHomeStatusFilter } = useViewStore();
+  const { homeView, setHomeView, homeStatusFilters, toggleHomeStatusFilter, clearHomeStatusFilters } = useViewStore();
 
   return (
     <AuthGuard>
@@ -348,11 +360,11 @@ export default function HomePage() {
 
           <StatsCards />
 
-          <StatusFilterBadges filter={homeStatusFilter} onFilter={setHomeStatusFilter} />
+          <StatusFilterBadges filters={homeStatusFilters} onToggle={toggleHomeStatusFilter} onClear={clearHomeStatusFilters} />
 
           {homeView === "list"
-            ? <ListView filter={homeStatusFilter} />
-            : <KanbanView filter={homeStatusFilter} />
+            ? <ListView filters={homeStatusFilters} />
+            : <KanbanView filters={homeStatusFilters} />
           }
         </div>
       </AppLayout>
