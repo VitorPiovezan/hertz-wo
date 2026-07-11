@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ClientCombobox } from "@/components/ui/client-combobox";
 import { useClients } from "@/hooks/useClients";
 import type { Budget, BudgetItem } from "@/types";
 
@@ -37,15 +38,14 @@ interface Props {
 
 export function BudgetForm({ defaultValues, onSubmit, loading }: Props) {
   const { data: clients } = useClients();
-  const defaultClientId: string | undefined = defaultValues?.client_id == null ? undefined : defaultValues.client_id;
-  const { register, handleSubmit, control, reset, setValue, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, control, reset, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       client_id: "",
       equipment_name: "",
       notes: "",
       status: "draft",
-      items: [{ label: "Serviço", amount: "" }],
+      items: [{ label: "Mão de obra", amount: "" }],
     },
   });
 
@@ -60,7 +60,7 @@ export function BudgetForm({ defaultValues, onSubmit, loading }: Props) {
         status: defaultValues.status ?? "draft",
         items: defaultValues.items?.length
           ? defaultValues.items.map((i) => ({ label: i.label, amount: String(i.amount) }))
-          : [{ label: "Serviço", amount: "" }],
+          : [{ label: "Mão de obra", amount: "" }],
       });
     }
   }, [defaultValues, reset]);
@@ -82,17 +82,11 @@ export function BudgetForm({ defaultValues, onSubmit, loading }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label>Cliente</Label>
-          <Select onValueChange={(v: string | null) => setValue("client_id", v ?? undefined)} defaultValue={defaultClientId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecionar cliente (opcional)" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">Sem cliente</SelectItem>
-              {clients?.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <ClientCombobox
+            options={clients?.map((c) => ({ value: c.id, label: c.name })) ?? []}
+            value={watch("client_id") || undefined}
+            onChange={(v) => setValue("client_id", v)}
+          />
         </div>
         <div className="space-y-1.5">
           <Label>Status</Label>

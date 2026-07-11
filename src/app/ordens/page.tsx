@@ -3,10 +3,9 @@
 import { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Search, ArrowLeft, Pencil, Trash2, ChevronRight } from "lucide-react";
+import { Plus, Search, ArrowLeft, Pencil, Trash2, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
@@ -185,19 +184,36 @@ function OrderDetail({ id, onBack }: { id: string; onBack: () => void }) {
   );
 }
 
+const STATUS_BADGE_OPTIONS: { value: OrderStatus | "all"; label: string }[] = [
+  { value: "all", label: "Todos" },
+  { value: "pending", label: "Pendente" },
+  { value: "in_review", label: "Em Aprovação" },
+  { value: "in_progress", label: "Em Andamento" },
+  { value: "completed", label: "Concluída" },
+];
+
 function OrdersList({ onSelect }: { onSelect: (id: string) => void }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const { data: orders, isLoading } = useOrders();
+
+  const hasDateFilter = dateFrom || dateTo;
 
   const filtered = orders?.filter((o) => {
     const matchSearch =
       o.equipment_name.toLowerCase().includes(search.toLowerCase()) ||
       o.maintenance_type.toLowerCase().includes(search.toLowerCase()) ||
-      o.client?.name.toLowerCase().includes(search.toLowerCase());
+      (o.client?.name ?? "").toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || o.status === statusFilter;
-    return matchSearch && matchStatus;
+    const created = new Date(o.created_at);
+    const matchFrom = !dateFrom || created >= new Date(dateFrom);
+    const matchTo = !dateTo || created <= new Date(dateTo + "T23:59:59");
+    return matchSearch && matchStatus && matchFrom && matchTo;
   });
+
+  const clearDateFilter = () => { setDateFrom(""); setDateTo(""); };
 
   return (
     <div className="space-y-4">
@@ -206,21 +222,36 @@ function OrdersList({ onSelect }: { onSelect: (id: string) => void }) {
         <Link href="/ordens/nova"><Button><Plus className="h-4 w-4 mr-1" />Nova OS</Button></Link>
       </div>
 
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Buscar equipamento, cliente..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
-        <Select value={statusFilter} onValueChange={(v: string | null) => setStatusFilter((v ?? "all") as OrderStatus | "all")}>
-          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os status</SelectItem>
-            <SelectItem value="pending">Pendente</SelectItem>
-            <SelectItem value="in_review">Em Aprovação</SelectItem>
-            <SelectItem value="in_progress">Em Andamento</SelectItem>
-            <SelectItem value="completed">Concluída</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input className="pl-9" placeholder="Buscar equipamento, cliente..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {STATUS_BADGE_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => setStatusFilter(opt.value)}
+            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors border ${
+              statusFilter === opt.value
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-background text-muted-foreground border-border hover:bg-muted"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-40 text-sm" placeholder="De" />
+        <span className="text-muted-foreground text-sm">até</span>
+        <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-40 text-sm" placeholder="Até" />
+        {hasDateFilter && (
+          <Button variant="ghost" size="icon" onClick={clearDateFilter} className="h-8 w-8">
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {isLoading && <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-20 rounded-lg bg-muted animate-pulse" />)}</div>}

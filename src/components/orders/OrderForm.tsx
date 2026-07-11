@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ClientCombobox } from "@/components/ui/client-combobox";
 import { useClients } from "@/hooks/useClients";
 import type { ServiceOrder, OrderValue } from "@/types";
 
@@ -85,17 +85,11 @@ export function OrderForm({ defaultValues, onSubmit, loading }: Props) {
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
       <div className="space-y-1.5">
         <Label>Cliente</Label>
-        <Select onValueChange={(v: string | null) => setValue("client_id", v ?? undefined)} defaultValue={(defaultValues?.client_id == null ? undefined : defaultValues.client_id) ?? ""}>
-          <SelectTrigger>
-            <SelectValue placeholder="Selecionar cliente (opcional)" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">Sem cliente</SelectItem>
-            {clients?.map((c) => (
-              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <ClientCombobox
+          options={clients?.map((c) => ({ value: c.id, label: c.name })) ?? []}
+          value={watch("client_id") || undefined}
+          onChange={(v) => setValue("client_id", v)}
+        />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

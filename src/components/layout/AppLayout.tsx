@@ -70,7 +70,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           <Zap className="h-4 w-4 text-primary-foreground" />
         </div>
         <div>
-          <p className="font-bold text-sm text-sidebar-foreground">Hertz WO</p>
+          <p className="font-bold text-sm text-sidebar-foreground">LP Tech</p>
           <p className="text-xs text-muted-foreground">Ordens de Serviço</p>
         </div>
       </div>
@@ -122,7 +122,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary">
               <Zap className="h-3.5 w-3.5 text-primary-foreground" />
             </div>
-            <span className="font-bold text-sm">Hertz WO</span>
+            <span className="font-bold text-sm">LP Tech</span>
           </div>
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger>

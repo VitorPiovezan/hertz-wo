@@ -25,6 +25,8 @@ export const useThemeStore = create<ThemeStore>()(
 interface ViewStore {
   homeView: "list" | "kanban";
   setHomeView: (view: "list" | "kanban") => void;
+  homeStatusFilter: string;
+  setHomeStatusFilter: (filter: string) => void;
 }
 
 export const useViewStore = create<ViewStore>()(
@@ -32,6 +34,8 @@ export const useViewStore = create<ViewStore>()(
     (set) => ({
       homeView: "list",
       setHomeView: (homeView) => set({ homeView }),
+      homeStatusFilter: "all",
+      setHomeStatusFilter: (homeStatusFilter) => set({ homeStatusFilter }),
     }),
     { name: "hertz-view" }
   )

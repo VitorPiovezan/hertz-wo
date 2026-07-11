@@ -29,7 +29,7 @@ export default function NovoBudgetPage() {
               <BudgetForm
                 onSubmit={(data) => {
                   create.mutate(data, {
-                    onSuccess: (b) => { toast.success("Orçamento criado"); router.push(`/orcamentos/${b.id}`); },
+                    onSuccess: (b) => { toast.success("Orçamento criado"); router.push(`/orcamentos?id=${b.id}`); },
                     onError: () => toast.error("Erro ao criar orçamento"),
                   });
                 }}

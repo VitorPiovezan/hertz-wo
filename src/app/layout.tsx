@@ -22,8 +22,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
-        <title>Hertz WO</title>
-        <meta name="description" content="Sistema de Ordens de Serviço - Hertz" />
+        <title>LP Tech</title>
+        <meta name="description" content="Sistema de Ordens de Serviço - LP Tech" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body className={`${inter.className} min-h-screen bg-background text-foreground`}>

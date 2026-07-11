@@ -37,7 +37,7 @@ function BudgetDocument({ budget }: { budget: Budget }) {
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.company}>Hertz WO</Text>
+          <Text style={styles.company}>LP Tech</Text>
           <Text style={styles.subtitle}>Sistema de Ordens de Serviço</Text>
         </View>
 
@@ -82,7 +82,7 @@ function BudgetDocument({ budget }: { budget: Budget }) {
           </View>
         )}
 
-        <Text style={styles.footer}>Orçamento gerado em {formatDate(new Date().toISOString())} via Hertz WO</Text>
+        <Text style={styles.footer}>Orçamento gerado em {formatDate(new Date().toISOString())} via LP Tech</Text>
       </Page>
     </Document>
   );
