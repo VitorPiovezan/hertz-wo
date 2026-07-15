@@ -123,14 +123,16 @@ function OrderAccordion({ order }: { order: ServiceOrder }) {
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors text-left"
         onClick={() => setOpen(!open)}
       >
-        <div className="flex flex-wrap items-center gap-2 min-w-0">
-          {orderIdLabel(order) && <span className="text-xs text-muted-foreground font-mono shrink-0">{orderIdLabel(order)}</span>}
-          <span className="font-medium text-sm truncate">{order.equipment_name}</span>
-          <OrderStatusBadge status={order.status} />
-          {order.status === "completed" && order.payment_status && (
-            <PaymentStatusBadge status={order.payment_status} />
-          )}
-          {order.deadline && <DeadlineBadge deadline={order.deadline} />}
+        <div className="min-w-0">
+          {orderIdLabel(order) && <p className="text-[10px] text-muted-foreground font-mono leading-none mb-0.5">{orderIdLabel(order)}</p>}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium text-sm truncate">{order.equipment_name}</span>
+            <OrderStatusBadge status={order.status} />
+            {order.status === "completed" && order.payment_status && (
+              <PaymentStatusBadge status={order.payment_status} />
+            )}
+            {order.deadline && <DeadlineBadge deadline={order.deadline} />}
+          </div>
         </div>
         <div className="flex items-center gap-3 shrink-0 ml-2">
           {total > 0 && <span className="text-sm font-medium text-muted-foreground">{formatCurrency(total)}</span>}
@@ -271,11 +273,9 @@ function KanbanOrderCard({ order, onDragStart, onDragEnd }: KanbanCardProps) {
     >
       <Link href={`/ordens?id=${order.id}`}>
         <Card className="hover:shadow-md transition-shadow select-none">
-          <CardContent className="p-3 space-y-2">
-            <div className="flex items-start justify-between gap-1">
-              <p className="text-sm font-medium leading-tight">{order.equipment_name}</p>
-              {idLabel && <span className="text-[10px] text-muted-foreground font-mono shrink-0">{idLabel}</span>}
-            </div>
+          <CardContent className="p-3 space-y-1.5">
+            {idLabel && <p className="text-[10px] text-muted-foreground font-mono">{idLabel}</p>}
+            <p className="text-sm font-medium leading-tight">{order.equipment_name}</p>
             {order.client && <p className="text-xs text-muted-foreground">{order.client.name}</p>}
             <p className="text-xs text-muted-foreground">{order.maintenance_type}</p>
             <div className="flex flex-wrap gap-1">

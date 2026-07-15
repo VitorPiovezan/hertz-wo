@@ -284,8 +284,8 @@ function OrdersList({ onSelect }: { onSelect: (id: string) => void }) {
             <Card key={o.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => onSelect(o.id)}>
               <CardContent className="p-4 flex items-center justify-between gap-3">
                 <div className="min-w-0 space-y-1">
+                  {orderIdLabel(o) && <p className="text-[10px] text-muted-foreground font-mono">{orderIdLabel(o)}</p>}
                   <div className="flex flex-wrap items-center gap-2">
-                    {orderIdLabel(o) && <span className="text-xs text-muted-foreground font-mono">{orderIdLabel(o)}</span>}
                     <p className="font-medium">{o.equipment_name}</p>
                     <OrderStatusBadge status={o.status} />
                     {o.status === "completed" && o.payment_status && <PaymentStatusBadge status={o.payment_status} />}
