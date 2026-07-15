@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Search, ArrowLeft, Pencil, Trash2, ChevronRight, X } from "lucide-react";
+import { Plus, Search, ArrowLeft, Pencil, Trash2, X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +26,13 @@ import type { OrderStatus, PaymentMethod, PaymentStatus } from "@/types";
 import toast from "react-hot-toast";
 
 const STATUS_FLOW: OrderStatus[] = ["pending", "in_review", "in_progress", "completed"];
+
+const STATUS_COLORS: Record<OrderStatus, string> = {
+  pending: "text-slate-600 dark:text-slate-400",
+  in_review: "text-amber-600 dark:text-amber-400",
+  in_progress: "text-blue-600 dark:text-blue-400",
+  completed: "text-green-600 dark:text-green-400",
+};
 
 function OrderDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const [editOpen, setEditOpen] = useState(false);
@@ -84,30 +91,25 @@ function OrderDetail({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
       </div>
 
-      {/* Status flow */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2 flex-wrap">
-            {STATUS_FLOW.map((s, i) => (
-              <div key={s} className="flex items-center gap-2">
-                <button
-                  onClick={() => handleStatusChange(s)}
-                  disabled={STATUS_FLOW.indexOf(order.status) >= i}
-                  className={`text-xs rounded-full font-medium transition-all ${order.status === s ? "ring-2 ring-primary ring-offset-1" : STATUS_FLOW.indexOf(order.status) > i ? "opacity-40 cursor-default" : "hover:opacity-80 cursor-pointer"}`}
-                >
-                  <OrderStatusBadge status={s} />
-                </button>
-                {i < STATUS_FLOW.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
-              </div>
+      {/* Status select */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground shrink-0">Status:</span>
+        <div className="relative">
+          <select
+            value={order.status}
+            onChange={(e) => handleStatusChange(e.target.value as OrderStatus)}
+            disabled={update.isPending}
+            className={`appearance-none bg-transparent border rounded-lg pl-3 pr-8 py-1.5 text-sm font-medium cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring ${STATUS_COLORS[order.status]}`}
+          >
+            {STATUS_FLOW.map((s) => (
+              <option key={s} value={s} className="text-foreground bg-background">
+                {ORDER_STATUS_LABELS[s]}
+              </option>
             ))}
-          </div>
-          {nextStatus && order.status !== "completed" && (
-            <Button size="sm" className="mt-3" onClick={() => handleStatusChange(nextStatus)} disabled={update.isPending}>
-              Avançar para {ORDER_STATUS_LABELS[nextStatus]}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+          </select>
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none text-muted-foreground" />
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>

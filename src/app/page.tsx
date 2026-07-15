@@ -256,15 +256,10 @@ interface KanbanCardProps {
   order: ServiceOrder;
   onDragStart: () => void;
   onDragEnd: () => void;
-  onStatusChange: (status: OrderStatus) => void;
-  isPending: boolean;
 }
 
-function KanbanOrderCard({ order, onDragStart, onDragEnd, onStatusChange, isPending }: KanbanCardProps) {
+function KanbanOrderCard({ order, onDragStart, onDragEnd }: KanbanCardProps) {
   const total = sumValues(order.values ?? []);
-  const currentIndex = STATUS_FLOW.indexOf(order.status);
-  const nextStatus = STATUS_FLOW[currentIndex + 1] ?? null;
-  const prevStatus = STATUS_FLOW[currentIndex - 1] ?? null;
   const idLabel = orderIdLabel(order);
 
   return (
@@ -274,7 +269,7 @@ function KanbanOrderCard({ order, onDragStart, onDragEnd, onStatusChange, isPend
       onDragEnd={onDragEnd}
       className="cursor-grab active:cursor-grabbing"
     >
-      <Link href={`/ordens?id=${order.id}`} onClick={(e) => { if ((e.target as HTMLElement).closest("button")) e.preventDefault(); }}>
+      <Link href={`/ordens?id=${order.id}`}>
         <Card className="hover:shadow-md transition-shadow select-none">
           <CardContent className="p-3 space-y-2">
             <div className="flex items-start justify-between gap-1">
@@ -290,30 +285,6 @@ function KanbanOrderCard({ order, onDragStart, onDragEnd, onStatusChange, isPend
               )}
             </div>
             {total > 0 && <p className="text-sm font-semibold">{formatCurrency(total)}</p>}
-            <div className="flex gap-1">
-              {prevStatus && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="flex-1 text-xs h-7"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onStatusChange(prevStatus); }}
-                  disabled={isPending}
-                >
-                  ← {ORDER_STATUS_LABELS[prevStatus]}
-                </Button>
-              )}
-              {nextStatus && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 text-xs h-7"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onStatusChange(nextStatus); }}
-                  disabled={isPending}
-                >
-                  {ORDER_STATUS_LABELS[nextStatus]} →
-                </Button>
-              )}
-            </div>
           </CardContent>
         </Card>
       </Link>
@@ -379,8 +350,6 @@ function KanbanView({ filters }: { filters: string[] }) {
                   order={order}
                   onDragStart={() => setDragging({ id: order.id, fromStatus: order.status })}
                   onDragEnd={() => { setDragging(null); setDropTarget(null); }}
-                  onStatusChange={(s) => handleStatusChange(order.id, s)}
-                  isPending={update.isPending}
                 />
               ))}
             </div>
