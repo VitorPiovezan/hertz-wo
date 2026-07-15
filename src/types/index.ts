@@ -33,6 +33,7 @@ export interface OrderMessage {
 
 export interface ServiceOrder {
   id: string;
+  order_number?: number;
   user_id: string;
   client_id?: string | null;
   client?: Client;

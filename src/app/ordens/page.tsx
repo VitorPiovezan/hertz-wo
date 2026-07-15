@@ -17,6 +17,11 @@ import { OrderChat } from "@/components/orders/OrderChat";
 import { CompleteOrderModal } from "@/components/orders/CompleteOrderModal";
 import { useOrders, useOrder, useUpdateOrder, useDeleteOrder } from "@/hooks/useOrders";
 import { formatCurrency, formatDate, formatRelative, sumValues, ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from "@/lib/utils";
+
+function orderIdLabel(order: import("@/types").ServiceOrder) {
+  if (!order.order_number) return null;
+  return `#${new Date(order.created_at).getFullYear()}${String(order.order_number).padStart(5, "0")}`;
+}
 import type { OrderStatus, PaymentMethod, PaymentStatus } from "@/types";
 import toast from "react-hot-toast";
 
@@ -65,6 +70,7 @@ function OrderDetail({ id, onBack }: { id: string; onBack: () => void }) {
         <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
+            {orderIdLabel(order) && <span className="text-xs text-muted-foreground font-mono">{orderIdLabel(order)}</span>}
             <h2 className="text-lg font-bold truncate">{order.equipment_name}</h2>
             <OrderStatusBadge status={order.status} />
             {order.status === "completed" && order.payment_status && <PaymentStatusBadge status={order.payment_status} />}
@@ -277,6 +283,7 @@ function OrdersList({ onSelect }: { onSelect: (id: string) => void }) {
               <CardContent className="p-4 flex items-center justify-between gap-3">
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
+                    {orderIdLabel(o) && <span className="text-xs text-muted-foreground font-mono">{orderIdLabel(o)}</span>}
                     <p className="font-medium">{o.equipment_name}</p>
                     <OrderStatusBadge status={o.status} />
                     {o.status === "completed" && o.payment_status && <PaymentStatusBadge status={o.payment_status} />}

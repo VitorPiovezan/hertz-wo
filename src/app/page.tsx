@@ -21,6 +21,12 @@ import toast from "react-hot-toast";
 const ORDER_STATUSES: OrderStatus[] = ["pending", "in_review", "in_progress", "completed"];
 const STATUS_FLOW: OrderStatus[] = ["pending", "in_review", "in_progress", "completed"];
 
+function orderIdLabel(order: ServiceOrder) {
+  if (!order.order_number) return null;
+  const year = new Date(order.created_at).getFullYear();
+  return `#${year}${String(order.order_number).padStart(5, "0")}`;
+}
+
 const FILTER_OPTIONS = [
   { value: "pending", label: "Pendente" },
   { value: "in_review", label: "Em Aprovação" },
@@ -118,6 +124,7 @@ function OrderAccordion({ order }: { order: ServiceOrder }) {
         onClick={() => setOpen(!open)}
       >
         <div className="flex flex-wrap items-center gap-2 min-w-0">
+          {orderIdLabel(order) && <span className="text-xs text-muted-foreground font-mono shrink-0">{orderIdLabel(order)}</span>}
           <span className="font-medium text-sm truncate">{order.equipment_name}</span>
           <OrderStatusBadge status={order.status} />
           {order.status === "completed" && order.payment_status && (
@@ -245,55 +252,95 @@ function ListView({ filters }: { filters: string[] }) {
   );
 }
 
-function KanbanOrderCard({ order }: { order: ServiceOrder }) {
-  const update = useUpdateOrder();
+interface KanbanCardProps {
+  order: ServiceOrder;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  onStatusChange: (status: OrderStatus) => void;
+  isPending: boolean;
+}
+
+function KanbanOrderCard({ order, onDragStart, onDragEnd, onStatusChange, isPending }: KanbanCardProps) {
   const total = sumValues(order.values ?? []);
   const currentIndex = STATUS_FLOW.indexOf(order.status);
   const nextStatus = STATUS_FLOW[currentIndex + 1] ?? null;
-
-  const advance = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!nextStatus) return;
-    update.mutate({ id: order.id, status: nextStatus }, {
-      onSuccess: () => toast.success(`Status: ${ORDER_STATUS_LABELS[nextStatus]}`),
-      onError: () => toast.error("Erro ao atualizar status"),
-    });
-  };
+  const prevStatus = STATUS_FLOW[currentIndex - 1] ?? null;
+  const idLabel = orderIdLabel(order);
 
   return (
-    <Link href={`/ordens?id=${order.id}`}>
-      <Card className="hover:shadow-md transition-shadow cursor-pointer">
-        <CardContent className="p-3 space-y-2">
-          <p className="text-sm font-medium leading-tight">{order.equipment_name}</p>
-          {order.client && <p className="text-xs text-muted-foreground">{order.client.name}</p>}
-          <p className="text-xs text-muted-foreground">{order.maintenance_type}</p>
-          <div className="flex flex-wrap gap-1">
-            {order.deadline && <DeadlineBadge deadline={order.deadline} />}
-            {order.status === "completed" && order.payment_status && (
-              <PaymentStatusBadge status={order.payment_status} />
-            )}
-          </div>
-          {total > 0 && <p className="text-sm font-semibold">{formatCurrency(total)}</p>}
-          {nextStatus && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full text-xs h-7"
-              onClick={advance}
-              disabled={update.isPending}
-            >
-              → {ORDER_STATUS_LABELS[nextStatus]}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
-    </Link>
+    <div
+      draggable
+      onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart(); }}
+      onDragEnd={onDragEnd}
+      className="cursor-grab active:cursor-grabbing"
+    >
+      <Link href={`/ordens?id=${order.id}`} onClick={(e) => { if ((e.target as HTMLElement).closest("button")) e.preventDefault(); }}>
+        <Card className="hover:shadow-md transition-shadow select-none">
+          <CardContent className="p-3 space-y-2">
+            <div className="flex items-start justify-between gap-1">
+              <p className="text-sm font-medium leading-tight">{order.equipment_name}</p>
+              {idLabel && <span className="text-[10px] text-muted-foreground font-mono shrink-0">{idLabel}</span>}
+            </div>
+            {order.client && <p className="text-xs text-muted-foreground">{order.client.name}</p>}
+            <p className="text-xs text-muted-foreground">{order.maintenance_type}</p>
+            <div className="flex flex-wrap gap-1">
+              {order.deadline && <DeadlineBadge deadline={order.deadline} />}
+              {order.status === "completed" && order.payment_status && (
+                <PaymentStatusBadge status={order.payment_status} />
+              )}
+            </div>
+            {total > 0 && <p className="text-sm font-semibold">{formatCurrency(total)}</p>}
+            <div className="flex gap-1">
+              {prevStatus && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="flex-1 text-xs h-7"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onStatusChange(prevStatus); }}
+                  disabled={isPending}
+                >
+                  ← {ORDER_STATUS_LABELS[prevStatus]}
+                </Button>
+              )}
+              {nextStatus && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 text-xs h-7"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onStatusChange(nextStatus); }}
+                  disabled={isPending}
+                >
+                  {ORDER_STATUS_LABELS[nextStatus]} →
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+    </div>
   );
 }
 
 function KanbanView({ filters }: { filters: string[] }) {
   const { data: orders, isLoading } = useOrders();
+  const update = useUpdateOrder();
+  const [dragging, setDragging] = useState<{ id: string; fromStatus: OrderStatus } | null>(null);
+  const [dropTarget, setDropTarget] = useState<OrderStatus | null>(null);
+
+  const handleStatusChange = (id: string, status: OrderStatus) => {
+    update.mutate({ id, status }, {
+      onSuccess: () => toast.success(ORDER_STATUS_LABELS[status]),
+      onError: () => toast.error("Erro ao atualizar status"),
+    });
+  };
+
+  const handleDrop = (toStatus: OrderStatus) => {
+    if (dragging && dragging.fromStatus !== toStatus) {
+      handleStatusChange(dragging.id, toStatus);
+    }
+    setDropTarget(null);
+    setDragging(null);
+  };
 
   if (isLoading) {
     return <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-64 rounded-lg bg-muted animate-pulse" />)}</div>;
@@ -305,18 +352,37 @@ function KanbanView({ filters }: { filters: string[] }) {
     return orderStatuses.includes(status);
   });
 
+  const cols = visibleStatuses.length;
+  const gridClass = cols === 1 ? "grid-cols-1 max-w-sm" : cols === 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
+
   return (
-    <div className={`grid gap-3 ${visibleStatuses.length === 1 ? "grid-cols-1 max-w-sm" : visibleStatuses.length === 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"}`}>
+    <div className={`grid gap-3 ${gridClass}`}>
       {visibleStatuses.map((status) => {
-        const cols = orders?.filter((o) => o.status === status) ?? [];
+        const colOrders = orders?.filter((o) => o.status === status) ?? [];
+        const isTarget = dropTarget === status && dragging?.fromStatus !== status;
         return (
-          <div key={status} className="space-y-2">
+          <div
+            key={status}
+            onDragOver={(e) => { e.preventDefault(); setDropTarget(status); }}
+            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTarget(null); }}
+            onDrop={() => handleDrop(status)}
+            className={`space-y-2 rounded-lg transition-all ${isTarget ? "ring-2 ring-primary ring-offset-1 bg-primary/5 p-1" : "p-0"}`}
+          >
             <div className="flex items-center justify-between px-1">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{ORDER_STATUS_LABELS[status]}</h3>
-              <Badge variant="secondary" className="text-xs">{cols.length}</Badge>
+              <Badge variant="secondary" className="text-xs">{colOrders.length}</Badge>
             </div>
             <div className="space-y-2 min-h-[4rem]">
-              {cols.map((order) => <KanbanOrderCard key={order.id} order={order} />)}
+              {colOrders.map((order) => (
+                <KanbanOrderCard
+                  key={order.id}
+                  order={order}
+                  onDragStart={() => setDragging({ id: order.id, fromStatus: order.status })}
+                  onDragEnd={() => { setDragging(null); setDropTarget(null); }}
+                  onStatusChange={(s) => handleStatusChange(order.id, s)}
+                  isPending={update.isPending}
+                />
+              ))}
             </div>
           </div>
         );
