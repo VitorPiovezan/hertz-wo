@@ -1,4 +1,33 @@
-import type { ServiceOrder } from "@/types";
+import type { ServiceOrder, StockItem } from "@/types";
+
+/** Prateleira sempre com 5 dígitos: 12 -> "00012". Vazio quando não informada. */
+export function formatShelf(shelf?: string | null): string {
+  const digitos = (shelf ?? "").replace(/\D/g, "");
+  if (!digitos) return "";
+  return digitos.slice(-5).padStart(5, "0");
+}
+
+/**
+ * Busca de estoque: nome, qualquer apelido e prateleira.
+ *
+ * A prateleira casa tanto digitada por extenso ("00012") quanto abreviada
+ * ("12"), porque ninguém digita os zeros à esquerda no dia a dia.
+ */
+export function matchesStockSearch(item: StockItem, term: string): boolean {
+  const t = term.trim().toLowerCase();
+  if (!t) return true;
+
+  if (item.name.toLowerCase().includes(t)) return true;
+  if ((item.aliases ?? []).some((a) => a.toLowerCase().includes(t))) return true;
+
+  const prateleira = formatShelf(item.shelf);
+  if (prateleira && prateleira.includes(t)) return true;
+
+  const digitos = t.replace(/\D/g, "");
+  if (digitos === "" || !prateleira) return false;
+  // "12" acha a prateleira "00012"
+  return prateleira === digitos.padStart(5, "0") || prateleira.includes(digitos);
+}
 
 /**
  * Identificador visível da OS: ano de criação + número sequencial com 5

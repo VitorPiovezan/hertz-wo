@@ -16,6 +16,7 @@ import { OrderForm } from "@/components/orders/OrderForm";
 import { OrderChat } from "@/components/orders/OrderChat";
 import { CompleteOrderModal } from "@/components/orders/CompleteOrderModal";
 import { OrderPaymentsEditor } from "@/components/orders/OrderPaymentsEditor";
+import { OrderStockItems } from "@/components/orders/OrderStockItems";
 import { PaymentAmounts } from "@/components/orders/PaymentAmounts";
 import { ReceiptButton } from "@/components/orders/ReceiptPDF";
 import { matchesOrderSearch, orderIdLabel } from "@/lib/search";
@@ -196,6 +197,12 @@ function OrderDetail({ id, onBack }: { id: string; onBack: () => void }) {
       </Card>
 
       <Card>
+        <CardContent className="pt-4">
+          <OrderStockItems orderId={id} showSeparator={false} />
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader className="pb-2"><CardTitle className="text-sm">Atualizações e Fotos</CardTitle></CardHeader>
         <CardContent>
           <OrderChat orderId={id} messages={order.messages ?? []} />
@@ -216,6 +223,7 @@ function OrderDetail({ id, onBack }: { id: string; onBack: () => void }) {
             loading={update.isPending}
           />
           <OrderPaymentsEditor order={order} />
+          <OrderStockItems orderId={id} />
         </DialogContent>
       </Dialog>
 

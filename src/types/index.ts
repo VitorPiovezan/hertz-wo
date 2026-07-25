@@ -62,6 +62,31 @@ export interface ServiceOrder {
   values?: OrderValue[];
   messages?: OrderMessage[];
   payments?: OrderPayment[];
+  stock_items?: OrderStockItem[];
+}
+
+/** Item do estoque. `shelf` é a prateleira, sempre com 5 dígitos. */
+export interface StockItem {
+  id: string;
+  user_id: string;
+  name: string;
+  aliases: string[];
+  shelf?: string;
+  quantity: number;
+  notes?: string;
+  created_at: string;
+}
+
+/** Item do estoque consumido por uma OS — controle interno, não sai para o cliente. */
+export interface OrderStockItem {
+  id: string;
+  order_id: string;
+  item_id?: string | null;
+  /** Nome no momento do uso, para o histórico sobreviver a renomeação/exclusão. */
+  item_name?: string;
+  quantity: number;
+  created_at?: string;
+  item?: StockItem;
 }
 
 export interface BudgetItem {

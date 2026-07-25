@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import type { ServiceOrder, OrderValue, OrderPayment, PaymentMethod } from "@/types";
 import { resolvePaymentStatus, sumValues } from "@/lib/utils";
+import { restoreStockFromOrder } from "@/hooks/useStock";
 
 const ORDER_SELECT_LEGACY = `*, client:clients(*), values:order_values(*), messages:order_messages(*)`;
 const ORDER_SELECT = `${ORDER_SELECT_LEGACY}, payments:order_payments(*)`;
@@ -275,10 +276,16 @@ export function useDeleteOrder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
+      // As peças consumidas voltam para a prateleira: o cascade apagaria os
+      // registros de uso sem repor o saldo do estoque.
+      await restoreStockFromOrder(id);
       const { error } = await supabase.from("service_orders").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["stock"] });
+    },
   });
 }
 
