@@ -26,8 +26,6 @@ const STATUS_FLOW: OrderStatus[] = ["pending", "in_review", "in_progress", "comp
 
 
 const FILTER_OPTIONS = [
-  { value: "pending", label: "Pendente" },
-  { value: "in_review", label: "Em Aprovação" },
   { value: "in_progress", label: "Em Andamento" },
   { value: "completed", label: "Concluída" },
   { value: "budget", label: "Orçamentos" },
@@ -56,8 +54,6 @@ function StatsCards() {
   const openOrders = orders?.filter((o) => o.status !== "completed") ?? [];
   const inProgress = orders?.filter((o) => o.status === "in_progress") ?? [];
   const completedPending = orders?.filter((o) => o.status === "completed" && o.payment_status !== "paid") ?? [];
-  // Inclui entradas/parcelas de OSs ainda não quitadas — o dinheiro já entrou no caixa.
-  const totalRevenue = orders?.reduce((acc, o) => acc + orderReceived(o), 0) ?? 0;
   // Mesma conta do "Total pendente" das Cobranças: o saldo devedor, já
   // descontando o que o cliente adiantou — não o valor cheio da OS.
   const totalToReceive = completedPending.reduce(
@@ -66,12 +62,11 @@ function StatsCards() {
   );
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {[
         { label: "OSs Abertas", value: openOrders.length, color: "text-blue-600 dark:text-blue-400" },
         { label: "Em Andamento", value: inProgress.length, color: "text-amber-600 dark:text-amber-400" },
         { label: "Aguardando Pagamento", value: completedPending.length, color: "text-orange-600 dark:text-orange-400" },
-        { label: "Receita Recebida", value: formatCurrency(totalRevenue), color: "text-green-600 dark:text-green-400" },
         { label: "A Receber", value: formatCurrency(totalToReceive), color: "text-orange-600 dark:text-orange-400" },
       ].map((s) => (
         <Card key={s.label}>
@@ -408,6 +403,12 @@ function KanbanView({ filters, search }: { filters: string[]; search: string }) 
 
 export default function HomePage() {
   const { homeView, setHomeView, homeStatusFilters, toggleHomeStatusFilter, clearHomeStatusFilters } = useViewStore();
+  // Os filtros ficam salvos no navegador. Um filtro que deixou de existir
+  // (Pendente, Em Aprovação) continuaria filtrando a lista sem badge para
+  // desmarcar — então é descartado na leitura.
+  const statusFilters = homeStatusFilters.filter((f) =>
+    FILTER_OPTIONS.some((o) => o.value === f)
+  );
   const [search, setSearch] = useState("");
   const searching = search.trim() !== "";
 
@@ -468,12 +469,12 @@ export default function HomePage() {
               Buscando em todas as OSs — filtros de status ignorados, incluindo as já concluídas e pagas.
             </p>
           ) : (
-            <StatusFilterBadges filters={homeStatusFilters} onToggle={toggleHomeStatusFilter} onClear={clearHomeStatusFilters} />
+            <StatusFilterBadges filters={statusFilters} onToggle={toggleHomeStatusFilter} onClear={clearHomeStatusFilters} />
           )}
 
           {homeView === "list"
-            ? <ListView filters={homeStatusFilters} search={search} />
-            : <KanbanView filters={homeStatusFilters} search={search} />
+            ? <ListView filters={statusFilters} search={search} />
+            : <KanbanView filters={statusFilters} search={search} />
           }
         </div>
       </AppLayout>
