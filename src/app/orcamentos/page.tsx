@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Search, ArrowLeft, Pencil, Trash2, Download, ClipboardList } from "lucide-react";
+import { Plus, Search, ArrowLeft, Pencil, Trash2, Download, ClipboardList, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -90,6 +90,17 @@ function BudgetDetail({ id, onBack }: { id: string; onBack: () => void }) {
           {budget.client && <div><span className="text-muted-foreground">Cliente: </span>{budget.client.name}</div>}
           <div><span className="text-muted-foreground">Data: </span>{formatDate(budget.created_at)}</div>
           {budget.notes && <div><span className="text-muted-foreground">Obs: </span>{budget.notes}</div>}
+          {budget.internal_notes && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900/50 dark:bg-amber-900/20">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Lock className="h-3 w-3 text-amber-700 dark:text-amber-400" />
+                <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                  Observação interna — não sai no PDF
+                </span>
+              </div>
+              <p className="whitespace-pre-wrap">{budget.internal_notes}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -9,9 +9,13 @@ import {
   Page,
   Text,
   View,
+  Image,
   StyleSheet,
   PDFDownloadLink,
 } from '@react-pdf/renderer';
+import { LPX_LOGO_PNG, LPX_LOGO_RATIO } from '@/lib/logo';
+
+const LOGO_WIDTH = 180;
 
 const styles = StyleSheet.create({
   page: {
@@ -21,8 +25,7 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
   },
   header: { marginBottom: 28 },
-  company: { fontSize: 20, fontFamily: 'Helvetica-Bold', color: '#4f46e5' },
-  subtitle: { fontSize: 10, color: '#6b7280', marginTop: 2 },
+  logo: { width: LOGO_WIDTH, height: LOGO_WIDTH / LPX_LOGO_RATIO },
   title: {
     fontSize: 16,
     fontFamily: 'Helvetica-Bold',
@@ -67,8 +70,8 @@ function BudgetDocument({ budget }: { budget: Budget }) {
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.company}>LPX Tech</Text>
-          <Text style={styles.subtitle}>Sistema de Ordens de Serviço</Text>
+          {/* A logo já traz o nome e o ramo, então dispensa o subtítulo. */}
+          <Image style={styles.logo} src={LPX_LOGO_PNG} />
         </View>
 
         <Text style={styles.title}>Orçamento</Text>

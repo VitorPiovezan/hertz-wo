@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,7 @@ const schema = z.object({
   client_id: z.string().optional(),
   equipment_name: z.string().min(1, "Nome do equipamento obrigatório"),
   notes: z.string().optional(),
+  internal_notes: z.string().optional(),
   status: z.enum(["draft", "sent", "approved", "rejected"]),
   items: z.array(z.object({ label: z.string().min(1), amount: z.string() })),
 });
@@ -30,6 +31,7 @@ interface Props {
     client_id?: string;
     equipment_name: string;
     notes?: string;
+    internal_notes?: string;
     status: Budget["status"];
     items: Omit<BudgetItem, "id" | "budget_id">[];
   }) => void;
@@ -44,6 +46,7 @@ export function BudgetForm({ defaultValues, onSubmit, loading }: Props) {
       client_id: "",
       equipment_name: "",
       notes: "",
+      internal_notes: "",
       status: "draft",
       items: [{ label: "Mão de obra", amount: "" }],
     },
@@ -57,6 +60,7 @@ export function BudgetForm({ defaultValues, onSubmit, loading }: Props) {
         client_id: defaultValues.client_id ?? "",
         equipment_name: defaultValues.equipment_name ?? "",
         notes: defaultValues.notes ?? "",
+        internal_notes: defaultValues.internal_notes ?? "",
         status: defaultValues.status ?? "draft",
         items: defaultValues.items?.length
           ? defaultValues.items.map((i) => ({ label: i.label, amount: String(i.amount) }))
@@ -70,6 +74,7 @@ export function BudgetForm({ defaultValues, onSubmit, loading }: Props) {
       client_id: data.client_id || undefined,
       equipment_name: data.equipment_name,
       notes: data.notes,
+      internal_notes: data.internal_notes,
       status: data.status,
       items: data.items
         .filter((i) => i.label && i.amount)
@@ -129,6 +134,22 @@ export function BudgetForm({ defaultValues, onSubmit, loading }: Props) {
       <div className="space-y-1.5">
         <Label htmlFor="notes">Observações</Label>
         <Textarea id="notes" {...register("notes")} placeholder="Condições, garantia, prazo de entrega..." rows={3} />
+        <p className="text-xs text-muted-foreground">Sai no PDF entregue ao cliente.</p>
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2">
+          <Label htmlFor="internal_notes">Observação interna</Label>
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+            <Lock className="h-2.5 w-2.5" /> não sai no PDF
+          </span>
+        </div>
+        <Textarea
+          id="internal_notes"
+          {...register("internal_notes")}
+          placeholder="Custo da peça, margem, com quem negociou, lembretes..."
+          rows={3}
+        />
       </div>
 
       <div className="flex justify-end">

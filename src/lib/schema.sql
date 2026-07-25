@@ -93,6 +93,8 @@ create table budgets (
   client_id uuid references clients(id) on delete set null,
   equipment_name text not null,
   notes text,
+  -- Uso interno: não é impresso no PDF do cliente (ver migração 002)
+  internal_notes text,
   status text default 'draft' check (status in ('draft','sent','approved','rejected')),
   created_at timestamptz default now()
 );

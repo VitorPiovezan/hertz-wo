@@ -78,6 +78,8 @@ export interface Budget {
   client?: Client;
   equipment_name: string;
   notes?: string;
+  /** Anotação de uso interno — nunca sai no PDF entregue ao cliente. */
+  internal_notes?: string;
   status: BudgetStatus;
   created_at: string;
   items?: BudgetItem[];

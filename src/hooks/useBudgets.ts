@@ -6,6 +6,44 @@ import type { Budget, BudgetItem } from "@/types";
 
 const BUDGET_SELECT = `*, client:clients(*), items:budget_items(*)`;
 
+/**
+ * `internal_notes` chega pela migração 002. Enquanto ela não roda no Supabase,
+ * gravar esse campo devolve erro de coluna inexistente — então a escrita é
+ * repetida sem ele e o resto do orçamento é salvo normalmente. A leitura é
+ * segura porque o select é `*`.
+ */
+export function internalNotesIsAvailable() {
+  return internalNotesAvailable !== false;
+}
+let internalNotesAvailable: boolean | null = null;
+
+function isMissingColumnError(error: { code?: string; message?: string } | null) {
+  if (!error) return false;
+  return error.code === "PGRST204" || /internal_notes/i.test(error.message ?? "");
+}
+
+/** Executa a escrita; se a coluna ainda não existe, refaz sem ela. */
+type WriteResult = { data: unknown; error: { code?: string; message?: string } | null };
+
+async function withInternalNotesFallback<T extends { internal_notes?: string | null }>(
+  payload: T,
+  // O builder do supabase-js é thenable, não Promise.
+  run: (p: Record<string, unknown>) => PromiseLike<WriteResult>
+): Promise<WriteResult> {
+  if (internalNotesAvailable !== false) {
+    const first = await run(payload as Record<string, unknown>);
+    if (!first.error) {
+      internalNotesAvailable = true;
+      return first;
+    }
+    if (!isMissingColumnError(first.error)) return first;
+    internalNotesAvailable = false;
+  }
+  const { internal_notes, ...rest } = payload;
+  void internal_notes;
+  return run(rest as Record<string, unknown>);
+}
+
 export function useBudgets() {
   return useQuery({
     queryKey: ["budgets"],
@@ -46,11 +84,10 @@ export function useCreateBudget() {
       items?: Omit<BudgetItem, "id" | "budget_id">[];
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data, error } = await supabase
-        .from("budgets")
-        .insert({ ...budget, user_id: user!.id })
-        .select()
-        .single();
+      const { data, error } = (await withInternalNotesFallback(
+        { ...budget, user_id: user!.id },
+        (p) => supabase.from("budgets").insert(p).select().single()
+      )) as { data: { id: string }; error: { message?: string } | null };
       if (error) throw error;
       if (items && items.length > 0) {
         const { error: ie } = await supabase
@@ -72,12 +109,9 @@ export function useUpdateBudget() {
       items,
       ...budget
     }: Omit<Partial<Budget>, "items"> & { id: string; items?: Omit<BudgetItem, "id" | "budget_id">[] }) => {
-      const { data, error } = await supabase
-        .from("budgets")
-        .update(budget)
-        .eq("id", id)
-        .select()
-        .single();
+      const { data, error } = (await withInternalNotesFallback(budget, (p) =>
+        supabase.from("budgets").update(p).eq("id", id).select().single()
+      )) as { data: unknown; error: { message?: string } | null };
       if (error) throw error;
       if (items !== undefined) {
         await supabase.from("budget_items").delete().eq("budget_id", id);
