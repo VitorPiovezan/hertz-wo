@@ -10,7 +10,7 @@ import { AuthGuard } from "@/components/AuthGuard";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useOrders } from "@/hooks/useOrders";
 import { useBudgets } from "@/hooks/useBudgets";
-import { formatCurrency, PAYMENT_METHOD_LABELS } from "@/lib/utils";
+import { formatCurrency, orderReceived, orderTotal, remainingBalance, PAYMENT_METHOD_LABELS } from "@/lib/utils";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import type { PaymentMethod } from "@/types";
 
@@ -45,11 +45,12 @@ export default function RelatoriosPage() {
 
   const completed = filteredOrders.filter((o) => o.status === "completed");
   const inProgress = filteredOrders.filter((o) => o.status === "in_progress");
-  const received = completed.filter((o) => o.payment_status === "paid");
   const pending = completed.filter((o) => o.payment_status !== "paid");
+  // Qualquer OS com dinheiro recebido, inclusive entradas/parcelas de OSs não quitadas.
+  const withPayments = filteredOrders.filter((o) => orderReceived(o) > 0);
 
-  const totalReceived = received.reduce((acc, o) => acc + (o.payment_amount ?? 0), 0);
-  const totalPending = pending.reduce((acc, o) => acc + (o.values?.reduce((s, v) => s + Number(v.amount), 0) ?? 0), 0);
+  const totalReceived = withPayments.reduce((acc, o) => acc + orderReceived(o), 0);
+  const totalPending = pending.reduce((acc, o) => acc + remainingBalance(orderTotal(o), orderReceived(o)), 0);
   const totalBudgets = filteredBudgets.reduce((acc, b) => acc + (b.items?.reduce((s, i) => s + Number(i.amount), 0) ?? 0), 0);
 
   const statusData = [
@@ -61,8 +62,8 @@ export default function RelatoriosPage() {
 
   const paymentMethodData = (["pix", "card", "cash"] as PaymentMethod[]).map((m) => ({
     name: PAYMENT_METHOD_LABELS[m],
-    value: received.filter((o) => o.payment_method === m).length,
-    total: received.filter((o) => o.payment_method === m).reduce((acc, o) => acc + (o.payment_amount ?? 0), 0),
+    value: withPayments.filter((o) => o.payment_method === m).length,
+    total: withPayments.filter((o) => o.payment_method === m).reduce((acc, o) => acc + orderReceived(o), 0),
   })).filter((d) => d.value > 0);
 
   const stats = [

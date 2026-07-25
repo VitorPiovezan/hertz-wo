@@ -76,6 +76,48 @@ export function sumValues(values: { amount: number }[]): number {
   return values.reduce((acc, v) => acc + Number(v.amount), 0);
 }
 
+/** Tolerância de centavos para comparar valores numeric(10,2). */
+const CENT_EPSILON = 0.005;
+
+/** Total da OS (soma dos valores lançados). */
+export function orderTotal(order: { values?: { amount: number }[] }): number {
+  return sumValues(order.values ?? []);
+}
+
+/** Quanto já foi recebido nessa OS (soma de entradas/parcelas). */
+export function orderReceived(order: { payment_amount?: number }): number {
+  return Number(order.payment_amount ?? 0);
+}
+
+/** Saldo que o cliente ainda deve. */
+export function remainingBalance(total: number, received: number): number {
+  const balance = total - received;
+  return balance < CENT_EPSILON ? 0 : balance;
+}
+
+/**
+ * Só considera "pago" quando o valor total da OS foi recebido.
+ * Pagamento parcial (entrada ou parcelas) continua "aguardando pagamento".
+ * Quando a OS não tem valores lançados, respeita a escolha do usuário.
+ */
+export function resolvePaymentStatus(
+  intended: PaymentStatus,
+  total: number,
+  received: number
+): PaymentStatus {
+  if (intended !== "paid") return "pending";
+  if (total <= 0) return "paid";
+  return received >= total - CENT_EPSILON ? "paid" : "pending";
+}
+
+/** OS concluída e quitada — sai do fluxo de trabalho e vai para "Serviços Concluídos". */
+export function isSettledOrder(order: {
+  status: OrderStatus;
+  payment_status?: PaymentStatus;
+}): boolean {
+  return order.status === "completed" && order.payment_status === "paid";
+}
+
 export function maskPhone(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   if (digits.length === 11) return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;

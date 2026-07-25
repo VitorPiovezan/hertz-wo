@@ -11,7 +11,14 @@ import { Label } from "@/components/ui/label";
 import { AuthGuard } from "@/components/AuthGuard";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useOrders, useUpdateOrder } from "@/hooks/useOrders";
-import { formatCurrency, formatDate, formatRelative } from "@/lib/utils";
+import {
+  formatCurrency,
+  formatRelative,
+  orderReceived,
+  orderTotal,
+  remainingBalance,
+  resolvePaymentStatus,
+} from "@/lib/utils";
 import type { PaymentMethod, ServiceOrder } from "@/types";
 import toast from "react-hot-toast";
 
@@ -22,26 +29,43 @@ function MarkPaidModal({
   order: ServiceOrder | null;
   onClose: () => void;
 }) {
+  const total = order ? orderTotal(order) : 0;
+  const alreadyReceived = order ? orderReceived(order) : 0;
+  const balance = remainingBalance(total, alreadyReceived);
+
   const [method, setMethod] = useState<PaymentMethod>("pix");
-  const [amount, setAmount] = useState(String(order?.payment_amount ?? sumValuesLocal(order)));
+  // O modal é remontado por OS (key no pai), então parte sempre do saldo devedor atual.
+  const [amount, setAmount] = useState(() => (balance > 0 ? String(balance) : ""));
   const update = useUpdateOrder();
 
-  function sumValuesLocal(o: ServiceOrder | null) {
-    return o?.values?.reduce((acc, v) => acc + Number(v.amount), 0) ?? 0;
-  }
+  const amountNow = parseFloat(amount) || 0;
+  const newReceived = alreadyReceived + amountNow;
+  const newBalance = remainingBalance(total, newReceived);
+  const newStatus = resolvePaymentStatus("paid", total, newReceived);
 
   const handleConfirm = () => {
     if (!order) return;
+    if (amountNow <= 0) {
+      toast.error("Informe o valor recebido");
+      return;
+    }
     update.mutate(
       {
         id: order.id,
-        payment_status: "paid",
+        payment_status: newStatus,
         payment_method: method,
-        payment_amount: parseFloat(amount) || undefined,
+        payment_amount: newReceived,
         payment_date: new Date().toISOString(),
       },
       {
-        onSuccess: () => { toast.success("Pagamento registrado"); onClose(); },
+        onSuccess: () => {
+          toast.success(
+            newStatus === "paid"
+              ? "Pagamento quitado"
+              : `Pagamento parcial registrado — saldo ${formatCurrency(newBalance)}`
+          );
+          onClose();
+        },
         onError: () => toast.error("Erro ao registrar pagamento"),
       }
     );
@@ -57,6 +81,21 @@ function MarkPaidModal({
           <DialogDescription>{order.equipment_name}{order.client ? ` — ${order.client.name}` : ""}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-2">
+          <div className="rounded-lg border bg-muted/30 px-3 py-2 space-y-1 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Total da OS</span>
+              <span className="font-medium">{formatCurrency(total)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Já recebido</span>
+              <span className="font-medium">{formatCurrency(alreadyReceived)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Saldo devedor</span>
+              <span className="font-medium text-orange-600 dark:text-orange-400">{formatCurrency(balance)}</span>
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <Label>Forma de Pagamento</Label>
             <Select value={method} onValueChange={(v: string | null) => setMethod((v ?? "pix") as PaymentMethod)}>
@@ -69,8 +108,15 @@ function MarkPaidModal({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Valor Recebido</Label>
-            <Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" />
+            <Label>Valor Recebido Agora</Label>
+            <Input type="number" step="0.01" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" />
+            {amountNow > 0 && (
+              <p className={`text-xs ${newStatus === "paid" ? "text-green-600 dark:text-green-400" : "text-orange-600 dark:text-orange-400"}`}>
+                {newStatus === "paid"
+                  ? "OS será marcada como Paga."
+                  : `Pagamento parcial — restam ${formatCurrency(newBalance)}. A OS continua Aguardando Pagamento.`}
+              </p>
+            )}
           </div>
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={onClose}>Cancelar</Button>
@@ -92,10 +138,10 @@ export default function CobrancasPage() {
     ?.filter((o) => o.status === "completed" && o.payment_status !== "paid")
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) ?? [];
 
-  const totalPending = pending.reduce((acc, o) => {
-    const orderTotal = o.values?.reduce((s, v) => s + Number(v.amount), 0) ?? 0;
-    return acc + (o.payment_amount ?? orderTotal);
-  }, 0);
+  const totalPending = pending.reduce(
+    (acc, o) => acc + remainingBalance(orderTotal(o), orderReceived(o)),
+    0
+  );
 
   return (
     <AuthGuard>
@@ -123,7 +169,9 @@ export default function CobrancasPage() {
 
           <div className="space-y-2">
             {pending.map((o) => {
-              const total = o.values?.reduce((acc, v) => acc + Number(v.amount), 0) ?? 0;
+              const total = orderTotal(o);
+              const received = orderReceived(o);
+              const balance = remainingBalance(total, received);
               const completedDate = o.created_at;
               return (
                 <Card key={o.id} className="border-orange-200 dark:border-orange-900/50">
@@ -138,7 +186,14 @@ export default function CobrancasPage() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-2 shrink-0">
-                      <p className="text-sm font-bold text-orange-600 dark:text-orange-400">{formatCurrency(total)}</p>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-orange-600 dark:text-orange-400">{formatCurrency(balance)}</p>
+                        {received > 0 && (
+                          <p className="text-[11px] text-muted-foreground">
+                            {formatCurrency(received)} de {formatCurrency(total)} recebido
+                          </p>
+                        )}
+                      </div>
                       <Button size="sm" onClick={() => setSelectedOrder(o)}>
                         <CreditCard className="h-3.5 w-3.5 mr-1" /> Receber
                       </Button>
@@ -150,7 +205,7 @@ export default function CobrancasPage() {
           </div>
         </div>
 
-        <MarkPaidModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
+        <MarkPaidModal key={selectedOrder?.id ?? "none"} order={selectedOrder} onClose={() => setSelectedOrder(null)} />
       </AppLayout>
     </AuthGuard>
   );

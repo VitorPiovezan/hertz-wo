@@ -14,7 +14,7 @@ import { useOrders, useUpdateOrder } from "@/hooks/useOrders";
 import { useBudgets } from "@/hooks/useBudgets";
 import { useCreateOrder } from "@/hooks/useOrders";
 import { useViewStore } from "@/store";
-import { formatDate, formatCurrency, sumValues, ORDER_STATUS_LABELS } from "@/lib/utils";
+import { formatDate, formatCurrency, sumValues, isSettledOrder, orderReceived, ORDER_STATUS_LABELS } from "@/lib/utils";
 import type { ServiceOrder, OrderStatus } from "@/types";
 import toast from "react-hot-toast";
 
@@ -35,14 +35,21 @@ const FILTER_OPTIONS = [
   { value: "budget", label: "Orçamentos" },
 ];
 
+/**
+ * A tela de Início mostra apenas o que ainda demanda ação: OSs concluídas e
+ * quitadas vivem em "Serviços Concluídos".
+ */
+function activeOrders(orders?: ServiceOrder[]): ServiceOrder[] {
+  return orders?.filter((o) => !isSettledOrder(o)) ?? [];
+}
+
 function StatsCards() {
   const { data: orders } = useOrders();
   const openOrders = orders?.filter((o) => o.status !== "completed") ?? [];
   const inProgress = orders?.filter((o) => o.status === "in_progress") ?? [];
   const completedPending = orders?.filter((o) => o.status === "completed" && o.payment_status !== "paid") ?? [];
-  const totalRevenue = orders
-    ?.filter((o) => o.payment_status === "paid")
-    .reduce((acc, o) => acc + (o.payment_amount ?? 0), 0) ?? 0;
+  // Inclui entradas/parcelas de OSs ainda não quitadas — o dinheiro já entrou no caixa.
+  const totalRevenue = orders?.reduce((acc, o) => acc + orderReceived(o), 0) ?? 0;
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -176,9 +183,9 @@ function ListView({ filters }: { filters: string[] }) {
   const showBudgets = noFilter || filters.includes("budget");
   const showOrders = noFilter || orderStatuses.length > 0;
 
-  const filteredOrders = orders?.filter((o) =>
+  const filteredOrders = activeOrders(orders).filter((o) =>
     noFilter || orderStatuses.length === 0 ? true : orderStatuses.includes(o.status)
-  ) ?? [];
+  );
 
   const handleCreateOS = (b: NonNullable<typeof budgets>[0]) => {
     if (!confirm(`Criar OS a partir do orçamento "${b.equipment_name}"?`)) return;
@@ -329,7 +336,7 @@ function KanbanView({ filters }: { filters: string[] }) {
   return (
     <div className={`grid gap-3 ${gridClass}`}>
       {visibleStatuses.map((status) => {
-        const colOrders = orders?.filter((o) => o.status === status) ?? [];
+        const colOrders = activeOrders(orders).filter((o) => o.status === status);
         const isTarget = dropTarget === status && dragging?.fromStatus !== status;
         return (
           <div

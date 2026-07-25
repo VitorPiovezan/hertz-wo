@@ -9,6 +9,7 @@ import {
   ClipboardList,
   FileText,
   CreditCard,
+  PackageCheck,
   BarChart3,
   Menu,
   X,
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { href: "/orcamentos", label: "Orçamentos", icon: FileText },
   { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/cobrancas", label: "Cobranças", icon: CreditCard },
+  { href: "/concluidos", label: "Serviços Concluídos", icon: PackageCheck },
   { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
 ];
 

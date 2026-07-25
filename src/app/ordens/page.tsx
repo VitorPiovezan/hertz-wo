@@ -16,7 +16,7 @@ import { OrderForm } from "@/components/orders/OrderForm";
 import { OrderChat } from "@/components/orders/OrderChat";
 import { CompleteOrderModal } from "@/components/orders/CompleteOrderModal";
 import { useOrders, useOrder, useUpdateOrder, useDeleteOrder } from "@/hooks/useOrders";
-import { formatCurrency, formatDate, formatRelative, sumValues, ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from "@/lib/utils";
+import { formatCurrency, formatDate, formatRelative, sumValues, orderReceived, remainingBalance, ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from "@/lib/utils";
 
 function orderIdLabel(order: import("@/types").ServiceOrder) {
   if (!order.order_number) return null;
@@ -156,6 +156,14 @@ function OrderDetail({ id, onBack }: { id: string; onBack: () => void }) {
                   <div className="flex justify-between text-sm font-medium">
                     <span className="text-muted-foreground">Recebido</span>
                     <span className="text-green-600 dark:text-green-400">{formatCurrency(order.payment_amount)}</span>
+                  </div>
+                )}
+                {remainingBalance(total, orderReceived(order)) > 0 && (
+                  <div className="flex justify-between text-sm font-medium">
+                    <span className="text-muted-foreground">Saldo devedor</span>
+                    <span className="text-orange-600 dark:text-orange-400">
+                      {formatCurrency(remainingBalance(total, orderReceived(order)))}
+                    </span>
                   </div>
                 )}
               </div>
