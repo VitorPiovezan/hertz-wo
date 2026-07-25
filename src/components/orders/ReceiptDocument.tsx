@@ -50,20 +50,7 @@ const styles = StyleSheet.create({
   titulo: { fontSize: 20, fontFamily: 'Helvetica-Bold', letterSpacing: 2 },
   numero: { fontSize: 10, color: '#6b7280' },
 
-  valorCaixa: {
-    marginTop: 18,
-    alignSelf: 'flex-start',
-    backgroundColor: '#eef2ff',
-    borderWidth: 1,
-    borderColor: '#c7d2fe',
-    borderRadius: 4,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  valorRotulo: { fontSize: 8, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 },
-  valor: { fontSize: 22, fontFamily: 'Helvetica-Bold', color: ROXO },
-
-  corpo: { marginTop: 18, fontSize: 11, lineHeight: 1.7, textAlign: 'justify' },
+  corpo: { marginTop: 24, fontSize: 11, lineHeight: 1.7, textAlign: 'justify' },
   negrito: { fontFamily: 'Helvetica-Bold' },
   extenso: { fontFamily: 'Helvetica-Oblique' },
 
@@ -145,6 +132,7 @@ function dataQuitacao(order: ServiceOrder) {
 export function ReceiptDocument({ order }: { order: ServiceOrder }) {
   const total = orderTotal(order);
   const recebido = orderReceived(order);
+  const itens = order.values ?? [];
   // O recibo vale pelo que entrou no caixa.
   const valor = recebido > 0 ? recebido : total;
   const quitadoEm = dataQuitacao(order);
@@ -168,11 +156,6 @@ export function ReceiptDocument({ order }: { order: ServiceOrder }) {
           <Text style={styles.numero}>Nº {reciboNumero(order)}</Text>
         </View>
 
-        <View style={styles.valorCaixa}>
-          <Text style={styles.valorRotulo}>Valor recebido</Text>
-          <Text style={styles.valor}>{formatCurrency(valor)}</Text>
-        </View>
-
         <Text style={styles.corpo}>
           Recebi{order.client ? ' de ' : ' '}
           <Text style={styles.negrito}>{order.client?.name ?? 'cliente não identificado'}</Text>
@@ -183,19 +166,23 @@ export function ReceiptDocument({ order }: { order: ServiceOrder }) {
           nº {reciboNumero(order)}.
         </Text>
 
-        <View style={styles.secao}>
-          <Text style={styles.secaoTitulo}>Discriminação do serviço</Text>
-          {order.values?.map((v, i) => (
-            <View key={i} style={styles.linha}>
-              <Text style={styles.rotulo}>{v.label}</Text>
-              <Text>{formatCurrency(Number(v.amount))}</Text>
+        {/* Com um item só, a discriminação apenas repetiria o valor já dito
+            no corpo e no pagamento — só entra quando há o que discriminar. */}
+        {itens.length > 1 && (
+          <View style={styles.secao}>
+            <Text style={styles.secaoTitulo}>Discriminação do serviço</Text>
+            {itens.map((v, i) => (
+              <View key={i} style={styles.linha}>
+                <Text style={styles.rotulo}>{v.label}</Text>
+                <Text>{formatCurrency(Number(v.amount))}</Text>
+              </View>
+            ))}
+            <View style={styles.totalLinha}>
+              <Text style={styles.totalTexto}>Total</Text>
+              <Text style={styles.totalValor}>{formatCurrency(total)}</Text>
             </View>
-          ))}
-          <View style={styles.totalLinha}>
-            <Text style={styles.totalTexto}>Total</Text>
-            <Text style={styles.totalValor}>{formatCurrency(total)}</Text>
           </View>
-        </View>
+        )}
 
         {pagamentos.length > 0 && (
           <View style={styles.secao}>
