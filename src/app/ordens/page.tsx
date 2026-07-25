@@ -18,7 +18,7 @@ import { CompleteOrderModal } from "@/components/orders/CompleteOrderModal";
 import { OrderPaymentsEditor } from "@/components/orders/OrderPaymentsEditor";
 import { PaymentAmounts } from "@/components/orders/PaymentAmounts";
 import { useOrders, useOrder, useUpdateOrder, useDeleteOrder, useAddPayment } from "@/hooks/useOrders";
-import { formatCurrency, formatDate, formatRelative, sumValues, orderReceived, remainingBalance, ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from "@/lib/utils";
+import { formatCurrency, formatDate, formatRelative, sumValues, isSettledOrder, orderReceived, remainingBalance, ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from "@/lib/utils";
 
 function orderIdLabel(order: import("@/types").ServiceOrder) {
   if (!order.order_number) return null;
@@ -250,12 +250,18 @@ function OrdersList({ onSelect }: { onSelect: (id: string) => void }) {
   const toggleStatus = (s: OrderStatus) =>
     setStatusFilters((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
 
+  const searching = search.trim() !== "";
+
   const filtered = orders?.filter((o) => {
+    // OS concluída e quitada vive em "Serviços Concluídos". A busca continua
+    // alcançando essas OSs, igual à tela de Início.
+    if (!searching && isSettledOrder(o)) return false;
+
     const matchSearch =
       o.equipment_name.toLowerCase().includes(search.toLowerCase()) ||
       o.maintenance_type.toLowerCase().includes(search.toLowerCase()) ||
       (o.client?.name ?? "").toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilters.length === 0 || statusFilters.includes(o.status);
+    const matchStatus = searching || statusFilters.length === 0 || statusFilters.includes(o.status);
     const created = new Date(o.created_at);
     const matchFrom = !dateFrom || created >= new Date(dateFrom);
     const matchTo = !dateTo || created <= new Date(dateTo + "T23:59:59");
@@ -312,6 +318,18 @@ function OrdersList({ onSelect }: { onSelect: (id: string) => void }) {
           </Button>
         )}
       </div>
+
+      {!searching && statusFilters.includes("completed") && (
+        <p className="text-xs text-muted-foreground">
+          Concluídas já pagas ficam em{" "}
+          <Link href="/concluidos" className="underline hover:text-foreground">Serviços Concluídos</Link>.
+        </p>
+      )}
+      {searching && (
+        <p className="text-xs text-muted-foreground">
+          Buscando em todas as OSs — filtros de status ignorados, incluindo as já concluídas e pagas.
+        </p>
+      )}
 
       {isLoading && <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-20 rounded-lg bg-muted animate-pulse" />)}</div>}
       {!isLoading && filtered?.length === 0 && <p className="text-center text-muted-foreground py-10">Nenhuma ordem encontrada</p>}
