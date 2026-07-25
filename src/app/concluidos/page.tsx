@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AuthGuard } from "@/components/AuthGuard";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PaymentStatusBadge } from "@/components/orders/StatusBadge";
+import { ReceiptButton } from "@/components/orders/ReceiptPDF";
 import { useOrders } from "@/hooks/useOrders";
 import {
   formatCurrency,
@@ -124,11 +125,14 @@ export default function ConcluidosPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-green-600 dark:text-green-400">{formatCurrency(orderReceived(o))}</p>
-                    {orderTotal(o) > 0 && orderReceived(o) !== orderTotal(o) && (
-                      <p className="text-[11px] text-muted-foreground">OS: {formatCurrency(orderTotal(o))}</p>
-                    )}
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-green-600 dark:text-green-400">{formatCurrency(orderReceived(o))}</p>
+                      {orderTotal(o) > 0 && orderReceived(o) !== orderTotal(o) && (
+                        <p className="text-[11px] text-muted-foreground">OS: {formatCurrency(orderTotal(o))}</p>
+                      )}
+                    </div>
+                    <ReceiptButton order={o} />
                   </div>
                 </CardContent>
               </Card>

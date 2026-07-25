@@ -17,6 +17,7 @@ import { OrderChat } from "@/components/orders/OrderChat";
 import { CompleteOrderModal } from "@/components/orders/CompleteOrderModal";
 import { OrderPaymentsEditor } from "@/components/orders/OrderPaymentsEditor";
 import { PaymentAmounts } from "@/components/orders/PaymentAmounts";
+import { ReceiptButton } from "@/components/orders/ReceiptPDF";
 import { useOrders, useOrder, useUpdateOrder, useDeleteOrder, useAddPayment } from "@/hooks/useOrders";
 import { formatCurrency, formatDate, formatRelative, sumValues, isSettledOrder, orderReceived, remainingBalance, ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from "@/lib/utils";
 
@@ -97,7 +98,8 @@ function OrderDetail({ id, onBack }: { id: string; onBack: () => void }) {
           </div>
           <p className="text-sm text-muted-foreground">{formatRelative(order.created_at)}</p>
         </div>
-        <div className="flex gap-1 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
+          {isSettledOrder(order) && <ReceiptButton order={order} />}
           <Button size="icon" variant="ghost" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4" /></Button>
           <Button size="icon" variant="ghost" onClick={handleDelete}><Trash2 className="h-4 w-4 text-destructive" /></Button>
         </div>

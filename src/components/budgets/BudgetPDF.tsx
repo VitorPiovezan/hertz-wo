@@ -24,7 +24,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#1a1a1a',
   },
-  header: { marginBottom: 28 },
+  header: { marginBottom: 28, alignItems: 'center' },
   logo: { width: LOGO_WIDTH, height: LOGO_WIDTH / LPX_LOGO_RATIO },
   title: {
     fontSize: 16,
