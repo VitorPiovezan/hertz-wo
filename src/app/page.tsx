@@ -22,7 +22,6 @@ import type { ServiceOrder, OrderStatus } from "@/types";
 import toast from "react-hot-toast";
 
 const ORDER_STATUSES: OrderStatus[] = ["pending", "in_review", "in_progress", "completed"];
-const STATUS_FLOW: OrderStatus[] = ["pending", "in_review", "in_progress", "completed"];
 
 
 const FILTER_OPTIONS = [
@@ -112,27 +111,7 @@ function StatusFilterBadges({ filters, onToggle, onClear }: { filters: string[];
 
 function OrderAccordion({ order }: { order: ServiceOrder }) {
   const [open, setOpen] = useState(false);
-  const update = useUpdateOrder();
   const total = sumValues(order.values ?? []);
-  const currentIndex = STATUS_FLOW.indexOf(order.status);
-  const nextStatus = STATUS_FLOW[currentIndex + 1] ?? null;
-  const prevStatus = STATUS_FLOW[currentIndex - 1] ?? null;
-
-  const advance = () => {
-    if (!nextStatus) return;
-    update.mutate({ id: order.id, status: nextStatus }, {
-      onSuccess: () => toast.success(`Status: ${ORDER_STATUS_LABELS[nextStatus]}`),
-      onError: () => toast.error("Erro ao atualizar status"),
-    });
-  };
-
-  const goBack = () => {
-    if (!prevStatus) return;
-    update.mutate({ id: order.id, status: prevStatus }, {
-      onSuccess: () => toast.success(`Status: ${ORDER_STATUS_LABELS[prevStatus]}`),
-      onError: () => toast.error("Erro ao atualizar status"),
-    });
-  };
 
   return (
     <div className="border rounded-lg overflow-hidden">
@@ -164,20 +143,11 @@ function OrderAccordion({ order }: { order: ServiceOrder }) {
           {order.client && <p className="text-sm"><span className="text-muted-foreground">Cliente: </span>{order.client.name}</p>}
           <p className="text-sm"><span className="text-muted-foreground">Manutenção: </span>{order.maintenance_type}</p>
           {order.deadline && <p className="text-sm"><span className="text-muted-foreground">Prazo: </span>{formatDate(order.deadline)}</p>}
-          <div className="flex flex-wrap gap-2 pt-1">
+          {/* Mudar status é responsabilidade da tela da OS; aqui só o acesso a ela. */}
+          <div className="pt-1">
             <Link href={`/ordens?id=${order.id}`}>
               <Button size="sm" variant="outline">Ver detalhes</Button>
             </Link>
-            {prevStatus && (
-              <Button size="sm" variant="ghost" onClick={goBack} disabled={update.isPending}>
-                ← {ORDER_STATUS_LABELS[prevStatus]}
-              </Button>
-            )}
-            {nextStatus && (
-              <Button size="sm" onClick={advance} disabled={update.isPending}>
-                {ORDER_STATUS_LABELS[nextStatus]} →
-              </Button>
-            )}
           </div>
         </div>
       )}
