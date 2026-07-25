@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CreditCard, CheckCircle2, Calendar } from "lucide-react";
+import { CreditCard, CheckCircle2, Calendar, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { AuthGuard } from "@/components/AuthGuard";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useOrders, useAddPayment } from "@/hooks/useOrders";
+import { matchesOrderSearch, orderIdLabel } from "@/lib/search";
 import {
   formatCurrency,
   formatRelative,
@@ -127,9 +128,12 @@ function MarkPaidModal({
 export default function CobrancasPage() {
   const { data: orders, isLoading } = useOrders();
   const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null);
+  const [search, setSearch] = useState('');
+  const searching = search.trim() !== '';
 
   const pending = orders
     ?.filter((o) => o.status === "completed" && o.payment_status !== "paid")
+    .filter((o) => matchesOrderSearch(o, search))
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) ?? [];
 
   const totalPending = pending.reduce(
@@ -151,14 +155,38 @@ export default function CobrancasPage() {
             )}
           </div>
 
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-9 pr-9"
+              placeholder="Buscar por nº da OS, cliente ou equipamento..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {searching && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Limpar busca"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
           {isLoading && <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-20 rounded-lg bg-muted animate-pulse" />)}</div>}
 
           {!isLoading && pending.length === 0 && (
-            <div className="text-center py-16 space-y-2">
-              <CheckCircle2 className="h-10 w-10 text-green-500 mx-auto" />
-              <p className="font-medium">Tudo em dia!</p>
-              <p className="text-sm text-muted-foreground">Nenhuma cobrança pendente</p>
-            </div>
+            searching ? (
+              <p className="text-center text-muted-foreground py-10">Nenhuma cobrança encontrada</p>
+            ) : (
+              <div className="text-center py-16 space-y-2">
+                <CheckCircle2 className="h-10 w-10 text-green-500 mx-auto" />
+                <p className="font-medium">Tudo em dia!</p>
+                <p className="text-sm text-muted-foreground">Nenhuma cobrança pendente</p>
+              </div>
+            )
           )}
 
           <div className="space-y-2">
@@ -171,6 +199,9 @@ export default function CobrancasPage() {
                 <Card key={o.id} className="border-orange-200 dark:border-orange-900/50">
                   <CardContent className="p-4 flex items-center justify-between gap-3">
                     <div className="min-w-0 space-y-1">
+                      {orderIdLabel(o) && (
+                        <p className="text-[10px] text-muted-foreground font-mono">{orderIdLabel(o)}</p>
+                      )}
                       <p className="font-medium">{o.equipment_name}</p>
                       {o.client && <p className="text-sm text-muted-foreground">{o.client.name}</p>}
                       {o.client?.phone_primary && <p className="text-xs text-muted-foreground">{o.client.phone_primary}</p>}

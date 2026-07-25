@@ -18,13 +18,10 @@ import { CompleteOrderModal } from "@/components/orders/CompleteOrderModal";
 import { OrderPaymentsEditor } from "@/components/orders/OrderPaymentsEditor";
 import { PaymentAmounts } from "@/components/orders/PaymentAmounts";
 import { ReceiptButton } from "@/components/orders/ReceiptPDF";
+import { matchesOrderSearch, orderIdLabel } from "@/lib/search";
 import { useOrders, useOrder, useUpdateOrder, useDeleteOrder, useAddPayment } from "@/hooks/useOrders";
 import { formatCurrency, formatDate, formatRelative, sumValues, isSettledOrder, orderReceived, remainingBalance, ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from "@/lib/utils";
 
-function orderIdLabel(order: import("@/types").ServiceOrder) {
-  if (!order.order_number) return null;
-  return `#${new Date(order.created_at).getFullYear()}${String(order.order_number).padStart(5, "0")}`;
-}
 import type { OrderStatus, PaymentMethod, PaymentStatus } from "@/types";
 import toast from "react-hot-toast";
 
@@ -259,10 +256,7 @@ function OrdersList({ onSelect }: { onSelect: (id: string) => void }) {
     // alcançando essas OSs, igual à tela de Início.
     if (!searching && isSettledOrder(o)) return false;
 
-    const matchSearch =
-      o.equipment_name.toLowerCase().includes(search.toLowerCase()) ||
-      o.maintenance_type.toLowerCase().includes(search.toLowerCase()) ||
-      (o.client?.name ?? "").toLowerCase().includes(search.toLowerCase());
+    const matchSearch = matchesOrderSearch(o, search);
     const matchStatus = searching || statusFilters.length === 0 || statusFilters.includes(o.status);
     const created = new Date(o.created_at);
     const matchFrom = !dateFrom || created >= new Date(dateFrom);
@@ -281,7 +275,7 @@ function OrdersList({ onSelect }: { onSelect: (id: string) => void }) {
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input className="pl-9" placeholder="Buscar equipamento, cliente..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Input className="pl-9" placeholder="Buscar por nº da OS, cliente ou equipamento..." value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
       <div className="flex flex-wrap gap-1.5">

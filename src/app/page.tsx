@@ -16,6 +16,7 @@ import { useOrders, useUpdateOrder } from "@/hooks/useOrders";
 import { useBudgets } from "@/hooks/useBudgets";
 import { useCreateOrder } from "@/hooks/useOrders";
 import { useViewStore } from "@/store";
+import { matchesOrderSearch, orderIdLabel } from "@/lib/search";
 import { formatDate, formatCurrency, sumValues, isSettledOrder, orderReceived, ORDER_STATUS_LABELS } from "@/lib/utils";
 import type { ServiceOrder, OrderStatus } from "@/types";
 import toast from "react-hot-toast";
@@ -23,11 +24,6 @@ import toast from "react-hot-toast";
 const ORDER_STATUSES: OrderStatus[] = ["pending", "in_review", "in_progress", "completed"];
 const STATUS_FLOW: OrderStatus[] = ["pending", "in_review", "in_progress", "completed"];
 
-function orderIdLabel(order: ServiceOrder) {
-  if (!order.order_number) return null;
-  const year = new Date(order.created_at).getFullYear();
-  return `#${year}${String(order.order_number).padStart(5, "0")}`;
-}
 
 const FILTER_OPTIONS = [
   { value: "pending", label: "Pendente" },
@@ -45,31 +41,13 @@ function activeOrders(orders?: ServiceOrder[]): ServiceOrder[] {
   return orders?.filter((o) => !isSettledOrder(o)) ?? [];
 }
 
-/** Busca por nome do cliente, número da OS ou nome do equipamento. */
-function matchesSearch(order: ServiceOrder, term: string): boolean {
-  const t = term.trim().toLowerCase();
-  if (!t) return true;
-
-  const idLabel = (orderIdLabel(order) ?? "").toLowerCase();
-  const digits = t.replace(/\D/g, "");
-
-  return (
-    order.equipment_name.toLowerCase().includes(t) ||
-    (order.client?.name ?? "").toLowerCase().includes(t) ||
-    idLabel.includes(t) ||
-    (digits !== "" &&
-      (idLabel.replace(/\D/g, "").includes(digits) ||
-        String(order.order_number ?? "").includes(digits)))
-  );
-}
-
 /**
  * Com busca preenchida, o resultado ignora os filtros de status e também
  * alcança as OSs concluídas e pagas — senão procurar um serviço antigo pela
  * Início não acharia nada.
  */
 function searchableOrders(orders: ServiceOrder[] | undefined, term: string): ServiceOrder[] {
-  return (orders ?? []).filter((o) => matchesSearch(o, term));
+  return (orders ?? []).filter((o) => matchesOrderSearch(o, term));
 }
 
 
