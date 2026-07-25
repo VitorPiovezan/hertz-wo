@@ -17,7 +17,7 @@ import { useBudgets } from "@/hooks/useBudgets";
 import { useCreateOrder } from "@/hooks/useOrders";
 import { useViewStore } from "@/store";
 import { matchesOrderSearch, orderIdLabel } from "@/lib/search";
-import { formatDate, formatCurrency, sumValues, isSettledOrder, orderReceived, ORDER_STATUS_LABELS } from "@/lib/utils";
+import { formatDate, formatCurrency, sumValues, isSettledOrder, orderReceived, orderTotal, remainingBalance, ORDER_STATUS_LABELS } from "@/lib/utils";
 import type { ServiceOrder, OrderStatus } from "@/types";
 import toast from "react-hot-toast";
 
@@ -58,14 +58,21 @@ function StatsCards() {
   const completedPending = orders?.filter((o) => o.status === "completed" && o.payment_status !== "paid") ?? [];
   // Inclui entradas/parcelas de OSs ainda não quitadas — o dinheiro já entrou no caixa.
   const totalRevenue = orders?.reduce((acc, o) => acc + orderReceived(o), 0) ?? 0;
+  // Mesma conta do "Total pendente" das Cobranças: o saldo devedor, já
+  // descontando o que o cliente adiantou — não o valor cheio da OS.
+  const totalToReceive = completedPending.reduce(
+    (acc, o) => acc + remainingBalance(orderTotal(o), orderReceived(o)),
+    0
+  );
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
       {[
         { label: "OSs Abertas", value: openOrders.length, color: "text-blue-600 dark:text-blue-400" },
         { label: "Em Andamento", value: inProgress.length, color: "text-amber-600 dark:text-amber-400" },
         { label: "Aguardando Pagamento", value: completedPending.length, color: "text-orange-600 dark:text-orange-400" },
         { label: "Receita Recebida", value: formatCurrency(totalRevenue), color: "text-green-600 dark:text-green-400" },
+        { label: "A Receber", value: formatCurrency(totalToReceive), color: "text-orange-600 dark:text-orange-400" },
       ].map((s) => (
         <Card key={s.label}>
           <CardContent className="pt-4 pb-4">
