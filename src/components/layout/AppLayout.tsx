@@ -16,10 +16,10 @@ import {
   Sun,
   Moon,
   LogOut,
-  Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { BrandLogo } from '@/components/layout/BrandLogo';
 import { useThemeStore } from '@/store';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
@@ -77,15 +77,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <Link
         href="/"
         onClick={onNavigate}
-        className="flex items-center gap-2 px-4 py-5 border-b border-sidebar-border transition-colors hover:bg-sidebar-accent"
+        className="block px-4 py-5 border-b border-sidebar-border transition-colors hover:bg-sidebar-accent"
       >
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary">
-          <Zap className="h-4 w-4 text-primary-foreground" />
-        </div>
-        <div>
-          <p className="font-bold text-sm text-sidebar-foreground">LPX Tech</p>
-          <p className="text-xs text-muted-foreground">Ordens de Serviço</p>
-        </div>
+        <BrandLogo className="h-7" />
+        <p className="text-xs text-muted-foreground mt-1.5">Ordens de Serviço</p>
       </Link>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
@@ -135,11 +130,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Mobile Header + Drawer */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <header className="flex md:hidden items-center justify-between px-4 py-3 border-b bg-sidebar">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary">
-              <Zap className="h-3.5 w-3.5 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-sm">LPX Tech</span>
+          <Link href="/" className="flex items-center">
+            <BrandLogo className="h-6" />
           </Link>
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger>
