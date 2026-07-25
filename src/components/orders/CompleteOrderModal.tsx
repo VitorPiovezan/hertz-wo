@@ -27,40 +27,52 @@ interface Props {
   onConfirm: (data: {
     payment_status: PaymentStatus;
     payment_method?: PaymentMethod;
+    /** Valor recebido AGORA — vira um lançamento novo, não substitui os anteriores. */
     payment_amount?: number;
     payment_notes?: string;
     payment_date?: string;
   }) => void;
   defaultTotal?: number;
+  /** Adiantamentos já registrados nesta OS. */
+  alreadyReceived?: number;
 }
 
-export function CompleteOrderModal({ open, onClose, onConfirm, defaultTotal }: Props) {
+export function CompleteOrderModal({
+  open,
+  onClose,
+  onConfirm,
+  defaultTotal,
+  alreadyReceived = 0,
+}: Props) {
+  const total = defaultTotal ?? 0;
+  const openBalance = remainingBalance(total, alreadyReceived);
+
   const { register, handleSubmit, setValue, watch, reset } = useForm<FormData>({
-    defaultValues: {
-      payment_status: "paid",
-      payment_amount: defaultTotal ? String(defaultTotal) : "",
-    },
+    defaultValues: { payment_status: "paid", payment_amount: openBalance ? String(openBalance) : "" },
   });
 
-  // O total só é conhecido depois que a OS carrega (e muda se os valores forem editados).
+  // O total e os adiantamentos só são conhecidos depois que a OS carrega.
+  // Já sugere o saldo em aberto, não o valor cheio da OS.
   useEffect(() => {
-    if (open) reset({ payment_status: "paid", payment_amount: defaultTotal ? String(defaultTotal) : "" });
-  }, [open, defaultTotal, reset]);
+    if (open) {
+      reset({ payment_status: "paid", payment_amount: openBalance ? String(openBalance) : "" });
+    }
+  }, [open, openBalance, reset]);
 
-  const total = defaultTotal ?? 0;
   const intendedStatus = watch("payment_status");
-  const received = parseFloat(watch("payment_amount") ?? "") || 0;
-  const balance = remainingBalance(total, received);
-  const finalStatus = resolvePaymentStatus(intendedStatus, total, received);
+  const receivingNow = parseFloat(watch("payment_amount") ?? "") || 0;
+  const totalReceived = alreadyReceived + receivingNow;
+  const balance = remainingBalance(total, totalReceived);
+  const finalStatus = resolvePaymentStatus(intendedStatus, total, totalReceived);
   const isPartial = intendedStatus === "paid" && finalStatus === "pending";
 
   const handleFormSubmit = (data: FormData) => {
-    const amount = parseFloat(data.payment_amount ?? "") || 0;
-    const status = resolvePaymentStatus(data.payment_status, total, amount);
+    const amountNow = parseFloat(data.payment_amount ?? "") || 0;
+    const status = resolvePaymentStatus(data.payment_status, total, alreadyReceived + amountNow);
     onConfirm({
       payment_status: status,
-      payment_method: amount > 0 ? data.payment_method : undefined,
-      payment_amount: amount > 0 ? amount : undefined,
+      payment_method: amountNow > 0 ? data.payment_method : undefined,
+      payment_amount: amountNow > 0 ? amountNow : undefined,
       payment_notes: data.payment_notes,
       // Data do pagamento só faz sentido quando a OS foi realmente quitada.
       payment_date: status === "paid" ? new Date().toISOString() : undefined,
@@ -72,7 +84,11 @@ export function CompleteOrderModal({ open, onClose, onConfirm, defaultTotal }: P
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Concluir Ordem de Serviço</DialogTitle>
-          <DialogDescription>Registre o pagamento desta ordem</DialogDescription>
+          <DialogDescription>
+            {alreadyReceived > 0
+              ? "Registre o valor recebido agora — os adiantamentos já entram no cálculo"
+              : "Registre o pagamento desta ordem"}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 pt-2">
           <div className="space-y-1.5">
@@ -109,7 +125,7 @@ export function CompleteOrderModal({ open, onClose, onConfirm, defaultTotal }: P
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>{intendedStatus === "paid" ? "Valor Recebido" : "Entrada Recebida"}</Label>
+              <Label>Valor Recebido Agora</Label>
               <Input
                 {...register("payment_amount")}
                 type="number"
@@ -126,13 +142,21 @@ export function CompleteOrderModal({ open, onClose, onConfirm, defaultTotal }: P
                 <span className="text-muted-foreground">Total da OS</span>
                 <span className="font-medium">{formatCurrency(total)}</span>
               </div>
+              {alreadyReceived > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Já adiantado</span>
+                  <span className="font-medium text-green-600 dark:text-green-400">
+                    {formatCurrency(alreadyReceived)}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Recebido</span>
-                <span className="font-medium">{formatCurrency(received)}</span>
+                <span className="text-muted-foreground">Recebendo agora</span>
+                <span className="font-medium">{formatCurrency(receivingNow)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Saldo restante</span>
-                <span className={balance > 0 ? "font-medium text-orange-600 dark:text-orange-400" : "font-medium text-green-600 dark:text-green-400"}>
+                <span className={balance > 0 ? "font-medium text-amber-600 dark:text-amber-400" : "font-medium text-green-600 dark:text-green-400"}>
                   {formatCurrency(balance)}
                 </span>
               </div>
@@ -140,8 +164,8 @@ export function CompleteOrderModal({ open, onClose, onConfirm, defaultTotal }: P
           )}
 
           {isPartial && (
-            <p className="text-xs text-orange-600 dark:text-orange-400">
-              O valor recebido é menor que o total da OS. Ela será concluída como{" "}
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              O total recebido ainda é menor que o valor da OS. Ela será concluída como{" "}
               <strong>Aguardando Pagamento</strong> e ficará em Cobranças até quitar o saldo de{" "}
               {formatCurrency(balance)}.
             </p>

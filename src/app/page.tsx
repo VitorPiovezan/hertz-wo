@@ -11,11 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { AuthGuard } from "@/components/AuthGuard";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { OrderStatusBadge, PaymentStatusBadge, BudgetStatusBadge, DeadlineBadge } from "@/components/orders/StatusBadge";
+import { PaymentAmounts } from "@/components/orders/PaymentAmounts";
 import { useOrders, useUpdateOrder } from "@/hooks/useOrders";
 import { useBudgets } from "@/hooks/useBudgets";
 import { useCreateOrder } from "@/hooks/useOrders";
 import { useViewStore } from "@/store";
-import { formatDate, formatCurrency, sumValues, isSettledOrder, orderReceived, remainingBalance, ORDER_STATUS_LABELS } from "@/lib/utils";
+import { formatDate, formatCurrency, sumValues, isSettledOrder, orderReceived, ORDER_STATUS_LABELS } from "@/lib/utils";
 import type { ServiceOrder, OrderStatus } from "@/types";
 import toast from "react-hot-toast";
 
@@ -71,19 +72,6 @@ function searchableOrders(orders: ServiceOrder[] | undefined, term: string): Ser
   return (orders ?? []).filter((o) => matchesSearch(o, term));
 }
 
-/** Recebido (verde) e saldo restante (amarelo) de uma OS paga pela metade. */
-function PartialPaymentAmounts({ order, total }: { order: ServiceOrder; total: number }) {
-  const received = orderReceived(order);
-  if (order.status !== "completed" || order.payment_status === "paid" || received <= 0) return null;
-  const balance = remainingBalance(total, received);
-  return (
-    <span className="flex items-center gap-1.5 text-xs whitespace-nowrap">
-      <span className="font-medium text-green-600 dark:text-green-400">{formatCurrency(received)}</span>
-      <span className="text-muted-foreground">/</span>
-      <span className="font-medium text-amber-600 dark:text-amber-400">{formatCurrency(balance)}</span>
-    </span>
-  );
-}
 
 function StatsCards() {
   const { data: orders } = useOrders();
@@ -186,7 +174,7 @@ function OrderAccordion({ order }: { order: ServiceOrder }) {
         <div className="flex items-center gap-3 shrink-0 ml-2">
           <div className="flex flex-col items-end">
             {total > 0 && <span className="text-sm font-medium text-muted-foreground">{formatCurrency(total)}</span>}
-            <PartialPaymentAmounts order={order} total={total} />
+            <PaymentAmounts order={order} />
           </div>
           {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </div>
@@ -351,7 +339,7 @@ function KanbanOrderCard({ order, onDragStart, onDragEnd }: KanbanCardProps) {
             {total > 0 && (
               <div className="flex items-baseline justify-between gap-2">
                 <p className="text-sm font-semibold">{formatCurrency(total)}</p>
-                <PartialPaymentAmounts order={order} total={total} />
+                <PaymentAmounts order={order} />
               </div>
             )}
           </CardContent>

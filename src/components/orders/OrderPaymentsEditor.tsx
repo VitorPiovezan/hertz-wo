@@ -181,7 +181,8 @@ function PaymentRow({
   );
 }
 
-function AddPaymentRow({ orderId }: { orderId: string }) {
+function AddPaymentRow({ orderId, noun }: { orderId: string; noun: string }) {
+  const label = `Adicionar ${noun.toLowerCase()}`;
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(toDateInput(new Date().toISOString()));
@@ -191,7 +192,7 @@ function AddPaymentRow({ orderId }: { orderId: string }) {
   if (!open) {
     return (
       <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar pagamento
+        <Plus className="h-3.5 w-3.5 mr-1" /> {label}
       </Button>
     );
   }
@@ -206,7 +207,7 @@ function AddPaymentRow({ orderId }: { orderId: string }) {
       { orderId, amount: parsed, method, paid_at: fromDateInput(date) },
       {
         onSuccess: () => {
-          toast.success('Pagamento registrado');
+          toast.success(`${noun} registrado`);
           setAmount('');
           setOpen(false);
         },
@@ -292,11 +293,20 @@ function LegacyAmountEditor({ order }: { order: ServiceOrder }) {
 }
 
 /**
- * Histórico de valores recebidos de uma OS concluída: lista cada lançamento com
- * a data, permite corrigir, remover e adicionar. As alterações salvam na hora,
+ * Histórico de valores recebidos de uma OS: lista cada lançamento com a data,
+ * permite corrigir, remover e adicionar. As alterações salvam na hora,
  * independentes do botão Salvar do formulário da OS.
+ *
+ * Funciona em qualquer status: numa OS ainda em andamento os lançamentos são
+ * adiantamentos/entradas do cliente; numa concluída, o pagamento do serviço.
  */
-export function OrderPaymentsEditor({ order }: { order: ServiceOrder }) {
+export function OrderPaymentsEditor({
+  order,
+  showSeparator = true,
+}: {
+  order: ServiceOrder;
+  showSeparator?: boolean;
+}) {
   const total = orderTotal(order);
   const received = orderReceived(order);
   const balance = remainingBalance(total, received);
@@ -304,21 +314,29 @@ export function OrderPaymentsEditor({ order }: { order: ServiceOrder }) {
     (a, b) => new Date(a.paid_at).getTime() - new Date(b.paid_at).getTime(),
   );
   const hasHistory = paymentsTableIsAvailable();
+  const isCompleted = order.status === 'completed';
+  const noun = isCompleted ? 'Pagamento' : 'Adiantamento';
 
   return (
     <div className="space-y-3 pt-2">
-      <Separator />
+      {showSeparator && <Separator />}
       <div>
-        <h3 className="text-sm font-semibold">Pagamentos recebidos</h3>
+        <h3 className="text-sm font-semibold">
+          {isCompleted ? 'Pagamentos recebidos' : 'Adiantamentos recebidos'}
+        </h3>
         <p className="text-xs text-muted-foreground">
-          A situação da OS é recalculada sozinha: só fica Paga quando o total é recebido.
+          {isCompleted
+            ? 'A situação da OS é recalculada sozinha: só fica Paga quando o total é recebido.'
+            : 'Entradas e parcelas pagas antes da conclusão. Ao concluir a OS, o valor já recebido é descontado.'}
         </p>
       </div>
 
       {hasHistory ? (
         <>
           {payments.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-1">Nenhum pagamento registrado</p>
+            <p className="text-sm text-muted-foreground py-1">
+              {isCompleted ? 'Nenhum pagamento registrado' : 'Nenhum adiantamento registrado'}
+            </p>
           ) : (
             <div className="divide-y">
               {payments.map(p => (
@@ -326,7 +344,7 @@ export function OrderPaymentsEditor({ order }: { order: ServiceOrder }) {
               ))}
             </div>
           )}
-          <AddPaymentRow orderId={order.id} />
+          <AddPaymentRow orderId={order.id} noun={noun} />
         </>
       ) : (
         <LegacyAmountEditor order={order} />

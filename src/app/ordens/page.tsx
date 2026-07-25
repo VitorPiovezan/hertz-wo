@@ -16,6 +16,7 @@ import { OrderForm } from "@/components/orders/OrderForm";
 import { OrderChat } from "@/components/orders/OrderChat";
 import { CompleteOrderModal } from "@/components/orders/CompleteOrderModal";
 import { OrderPaymentsEditor } from "@/components/orders/OrderPaymentsEditor";
+import { PaymentAmounts } from "@/components/orders/PaymentAmounts";
 import { useOrders, useOrder, useUpdateOrder, useDeleteOrder, useAddPayment } from "@/hooks/useOrders";
 import { formatCurrency, formatDate, formatRelative, sumValues, orderReceived, remainingBalance, ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from "@/lib/utils";
 
@@ -150,29 +151,35 @@ function OrderDetail({ id, onBack }: { id: string; onBack: () => void }) {
                 </div>
               </>
             )}
-            {order.status === "completed" && order.payment_status && (
+            {(order.status === "completed" || orderReceived(order) > 0) && (
               <div className="pt-1 space-y-1">
                 <Separator />
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Pagamento</span>
-                  <PaymentStatusBadge status={order.payment_status} />
-                </div>
+                {order.status === "completed" && order.payment_status && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Pagamento</span>
+                    <PaymentStatusBadge status={order.payment_status} />
+                  </div>
+                )}
                 {order.payment_method && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Forma</span>
                     <span>{PAYMENT_METHOD_LABELS[order.payment_method as PaymentMethod]}</span>
                   </div>
                 )}
-                {order.payment_amount && (
+                {orderReceived(order) > 0 && (
                   <div className="flex justify-between text-sm font-medium">
-                    <span className="text-muted-foreground">Recebido</span>
-                    <span className="text-green-600 dark:text-green-400">{formatCurrency(order.payment_amount)}</span>
+                    <span className="text-muted-foreground">
+                      {order.status === "completed" ? "Recebido" : "Adiantado"}
+                    </span>
+                    <span className="text-green-600 dark:text-green-400">{formatCurrency(orderReceived(order))}</span>
                   </div>
                 )}
-                {remainingBalance(total, orderReceived(order)) > 0 && (
+                {remainingBalance(total, orderReceived(order)) > 0 && orderReceived(order) > 0 && (
                   <div className="flex justify-between text-sm font-medium">
-                    <span className="text-muted-foreground">Saldo devedor</span>
-                    <span className="text-orange-600 dark:text-orange-400">
+                    <span className="text-muted-foreground">
+                      {order.status === "completed" ? "Saldo devedor" : "Falta receber"}
+                    </span>
+                    <span className="text-amber-600 dark:text-amber-400">
                       {formatCurrency(remainingBalance(total, orderReceived(order)))}
                     </span>
                   </div>
@@ -182,6 +189,12 @@ function OrderDetail({ id, onBack }: { id: string; onBack: () => void }) {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardContent className="pt-4">
+          <OrderPaymentsEditor order={order} showSeparator={false} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-sm">Atualizações e Fotos</CardTitle></CardHeader>
@@ -203,11 +216,17 @@ function OrderDetail({ id, onBack }: { id: string; onBack: () => void }) {
             }}
             loading={update.isPending}
           />
-          {order.status === "completed" && <OrderPaymentsEditor order={order} />}
+          <OrderPaymentsEditor order={order} />
         </DialogContent>
       </Dialog>
 
-      <CompleteOrderModal open={completeOpen} onClose={() => setCompleteOpen(false)} onConfirm={handleComplete} defaultTotal={total} />
+      <CompleteOrderModal
+        open={completeOpen}
+        onClose={() => setCompleteOpen(false)}
+        onConfirm={handleComplete}
+        defaultTotal={total}
+        alreadyReceived={orderReceived(order)}
+      />
     </div>
   );
 }
@@ -314,7 +333,10 @@ function OrdersList({ onSelect }: { onSelect: (id: string) => void }) {
                   <p className="text-sm text-muted-foreground">{o.maintenance_type}</p>
                   {o.client && <p className="text-xs text-muted-foreground">{o.client.name}</p>}
                 </div>
-                {total > 0 && <span className="text-sm font-semibold shrink-0">{formatCurrency(total)}</span>}
+                <div className="flex flex-col items-end shrink-0">
+                  {total > 0 && <span className="text-sm font-semibold">{formatCurrency(total)}</span>}
+                  <PaymentAmounts order={o} />
+                </div>
               </CardContent>
             </Card>
           );
