@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, LayoutList, LayoutDashboard, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, LayoutList, LayoutDashboard, ChevronDown, ChevronRight, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AuthGuard } from "@/components/AuthGuard";
@@ -14,7 +15,7 @@ import { useOrders, useUpdateOrder } from "@/hooks/useOrders";
 import { useBudgets } from "@/hooks/useBudgets";
 import { useCreateOrder } from "@/hooks/useOrders";
 import { useViewStore } from "@/store";
-import { formatDate, formatCurrency, sumValues, isSettledOrder, orderReceived, ORDER_STATUS_LABELS } from "@/lib/utils";
+import { formatDate, formatCurrency, sumValues, isSettledOrder, orderReceived, remainingBalance, ORDER_STATUS_LABELS } from "@/lib/utils";
 import type { ServiceOrder, OrderStatus } from "@/types";
 import toast from "react-hot-toast";
 
@@ -41,6 +42,47 @@ const FILTER_OPTIONS = [
  */
 function activeOrders(orders?: ServiceOrder[]): ServiceOrder[] {
   return orders?.filter((o) => !isSettledOrder(o)) ?? [];
+}
+
+/** Busca por nome do cliente, número da OS ou nome do equipamento. */
+function matchesSearch(order: ServiceOrder, term: string): boolean {
+  const t = term.trim().toLowerCase();
+  if (!t) return true;
+
+  const idLabel = (orderIdLabel(order) ?? "").toLowerCase();
+  const digits = t.replace(/\D/g, "");
+
+  return (
+    order.equipment_name.toLowerCase().includes(t) ||
+    (order.client?.name ?? "").toLowerCase().includes(t) ||
+    idLabel.includes(t) ||
+    (digits !== "" &&
+      (idLabel.replace(/\D/g, "").includes(digits) ||
+        String(order.order_number ?? "").includes(digits)))
+  );
+}
+
+/**
+ * Com busca preenchida, o resultado ignora os filtros de status e também
+ * alcança as OSs concluídas e pagas — senão procurar um serviço antigo pela
+ * Início não acharia nada.
+ */
+function searchableOrders(orders: ServiceOrder[] | undefined, term: string): ServiceOrder[] {
+  return (orders ?? []).filter((o) => matchesSearch(o, term));
+}
+
+/** Recebido (verde) e saldo restante (amarelo) de uma OS paga pela metade. */
+function PartialPaymentAmounts({ order, total }: { order: ServiceOrder; total: number }) {
+  const received = orderReceived(order);
+  if (order.status !== "completed" || order.payment_status === "paid" || received <= 0) return null;
+  const balance = remainingBalance(total, received);
+  return (
+    <span className="flex items-center gap-1.5 text-xs whitespace-nowrap">
+      <span className="font-medium text-green-600 dark:text-green-400">{formatCurrency(received)}</span>
+      <span className="text-muted-foreground">/</span>
+      <span className="font-medium text-amber-600 dark:text-amber-400">{formatCurrency(balance)}</span>
+    </span>
+  );
 }
 
 function StatsCards() {
@@ -142,7 +184,10 @@ function OrderAccordion({ order }: { order: ServiceOrder }) {
           </div>
         </div>
         <div className="flex items-center gap-3 shrink-0 ml-2">
-          {total > 0 && <span className="text-sm font-medium text-muted-foreground">{formatCurrency(total)}</span>}
+          <div className="flex flex-col items-end">
+            {total > 0 && <span className="text-sm font-medium text-muted-foreground">{formatCurrency(total)}</span>}
+            <PartialPaymentAmounts order={order} total={total} />
+          </div>
           {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </div>
       </button>
@@ -172,20 +217,32 @@ function OrderAccordion({ order }: { order: ServiceOrder }) {
   );
 }
 
-function ListView({ filters }: { filters: string[] }) {
+function ListView({ filters, search }: { filters: string[]; search: string }) {
   const router = useRouter();
   const { data: orders, isLoading: lo } = useOrders();
   const { data: budgets, isLoading: lb } = useBudgets();
   const createOrder = useCreateOrder();
 
+  const searching = search.trim() !== "";
   const noFilter = filters.length === 0;
   const orderStatuses = filters.filter((f) => f !== "budget");
-  const showBudgets = noFilter || filters.includes("budget");
-  const showOrders = noFilter || orderStatuses.length > 0;
+  const showBudgets = searching || noFilter || filters.includes("budget");
+  const showOrders = searching || noFilter || orderStatuses.length > 0;
 
-  const filteredOrders = activeOrders(orders).filter((o) =>
-    noFilter || orderStatuses.length === 0 ? true : orderStatuses.includes(o.status)
-  );
+  const filteredOrders = searching
+    ? searchableOrders(orders, search)
+    : activeOrders(orders).filter((o) =>
+        noFilter || orderStatuses.length === 0 ? true : orderStatuses.includes(o.status)
+      );
+
+  const term = search.trim().toLowerCase();
+  const filteredBudgets = searching
+    ? (budgets ?? []).filter(
+        (b) =>
+          b.equipment_name.toLowerCase().includes(term) ||
+          (b.client?.name ?? "").toLowerCase().includes(term)
+      )
+    : budgets ?? [];
 
   const handleCreateOS = (b: NonNullable<typeof budgets>[0]) => {
     if (!confirm(`Criar OS a partir do orçamento "${b.equipment_name}"?`)) return;
@@ -215,7 +272,7 @@ function ListView({ filters }: { filters: string[] }) {
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Ordens de Serviço</h2>
           {filteredOrders.length === 0
-            ? <p className="text-sm text-muted-foreground py-6 text-center">Nenhuma ordem de serviço</p>
+            ? <p className="text-sm text-muted-foreground py-6 text-center">{searching ? "Nenhuma ordem encontrada" : "Nenhuma ordem de serviço"}</p>
             : <div className="space-y-1.5">{filteredOrders.map((o) => <OrderAccordion key={o.id} order={o} />)}</div>
           }
         </div>
@@ -224,11 +281,11 @@ function ListView({ filters }: { filters: string[] }) {
       {showBudgets && (
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Orçamentos</h2>
-          {(budgets?.length ?? 0) === 0
-            ? <p className="text-sm text-muted-foreground py-6 text-center">Nenhum orçamento ainda</p>
+          {filteredBudgets.length === 0
+            ? <p className="text-sm text-muted-foreground py-6 text-center">{searching ? "Nenhum orçamento encontrado" : "Nenhum orçamento ainda"}</p>
             : (
               <div className="space-y-1.5">
-                {budgets?.map((b) => (
+                {filteredBudgets.map((b) => (
                   <div key={b.id} className="border rounded-lg flex items-center justify-between px-4 py-3 gap-2">
                     <div className="flex flex-wrap items-center gap-2 min-w-0">
                       <span className="font-medium text-sm truncate">{b.equipment_name}</span>
@@ -291,7 +348,12 @@ function KanbanOrderCard({ order, onDragStart, onDragEnd }: KanbanCardProps) {
                 <PaymentStatusBadge status={order.payment_status} />
               )}
             </div>
-            {total > 0 && <p className="text-sm font-semibold">{formatCurrency(total)}</p>}
+            {total > 0 && (
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-sm font-semibold">{formatCurrency(total)}</p>
+                <PartialPaymentAmounts order={order} total={total} />
+              </div>
+            )}
           </CardContent>
         </Card>
       </Link>
@@ -299,7 +361,7 @@ function KanbanOrderCard({ order, onDragStart, onDragEnd }: KanbanCardProps) {
   );
 }
 
-function KanbanView({ filters }: { filters: string[] }) {
+function KanbanView({ filters, search }: { filters: string[]; search: string }) {
   const { data: orders, isLoading } = useOrders();
   const update = useUpdateOrder();
   const [dragging, setDragging] = useState<{ id: string; fromStatus: OrderStatus } | null>(null);
@@ -324,11 +386,15 @@ function KanbanView({ filters }: { filters: string[] }) {
     return <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-64 rounded-lg bg-muted animate-pulse" />)}</div>;
   }
 
+  const searching = search.trim() !== "";
   const orderStatuses = filters.filter((f) => f !== "budget");
   const visibleStatuses = ORDER_STATUSES.filter((status) => {
+    if (searching) return true;
     if (filters.length === 0 || (filters.includes("budget") && orderStatuses.length === 0)) return true;
     return orderStatuses.includes(status);
   });
+
+  const visibleOrders = searching ? searchableOrders(orders, search) : activeOrders(orders);
 
   const cols = visibleStatuses.length;
   const gridClass = cols === 1 ? "grid-cols-1 max-w-sm" : cols === 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
@@ -336,7 +402,7 @@ function KanbanView({ filters }: { filters: string[] }) {
   return (
     <div className={`grid gap-3 ${gridClass}`}>
       {visibleStatuses.map((status) => {
-        const colOrders = activeOrders(orders).filter((o) => o.status === status);
+        const colOrders = visibleOrders.filter((o) => o.status === status);
         const isTarget = dropTarget === status && dragging?.fromStatus !== status;
         return (
           <div
@@ -369,6 +435,8 @@ function KanbanView({ filters }: { filters: string[] }) {
 
 export default function HomePage() {
   const { homeView, setHomeView, homeStatusFilters, toggleHomeStatusFilter, clearHomeStatusFilters } = useViewStore();
+  const [search, setSearch] = useState("");
+  const searching = search.trim() !== "";
 
   return (
     <AuthGuard>
@@ -402,11 +470,37 @@ export default function HomePage() {
 
           <StatsCards />
 
-          <StatusFilterBadges filters={homeStatusFilters} onToggle={toggleHomeStatusFilter} onClear={clearHomeStatusFilters} />
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-9 pr-9"
+              placeholder="Buscar por cliente, nº da OS ou equipamento..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {searching && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Limpar busca"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {searching ? (
+            <p className="text-xs text-muted-foreground">
+              Buscando em todas as OSs — filtros de status ignorados, incluindo as já concluídas e pagas.
+            </p>
+          ) : (
+            <StatusFilterBadges filters={homeStatusFilters} onToggle={toggleHomeStatusFilter} onClear={clearHomeStatusFilters} />
+          )}
 
           {homeView === "list"
-            ? <ListView filters={homeStatusFilters} />
-            : <KanbanView filters={homeStatusFilters} />
+            ? <ListView filters={homeStatusFilters} search={search} />
+            : <KanbanView filters={homeStatusFilters} search={search} />
           }
         </div>
       </AppLayout>

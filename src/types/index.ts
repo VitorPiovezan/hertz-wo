@@ -22,6 +22,17 @@ export interface OrderValue {
   amount: number;
 }
 
+/** Um valor recebido (entrada ou parcela) de uma OS. */
+export interface OrderPayment {
+  id: string;
+  order_id: string;
+  amount: number;
+  method?: PaymentMethod;
+  paid_at: string;
+  notes?: string;
+  created_at?: string;
+}
+
 export interface OrderMessage {
   id: string;
   order_id: string;
@@ -50,6 +61,7 @@ export interface ServiceOrder {
   created_at: string;
   values?: OrderValue[];
   messages?: OrderMessage[];
+  payments?: OrderPayment[];
 }
 
 export interface BudgetItem {

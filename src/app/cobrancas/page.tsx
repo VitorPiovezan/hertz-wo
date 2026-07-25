@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthGuard } from "@/components/AuthGuard";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useOrders, useUpdateOrder } from "@/hooks/useOrders";
+import { useOrders, useAddPayment } from "@/hooks/useOrders";
 import {
   formatCurrency,
   formatRelative,
@@ -36,7 +36,7 @@ function MarkPaidModal({
   const [method, setMethod] = useState<PaymentMethod>("pix");
   // O modal é remontado por OS (key no pai), então parte sempre do saldo devedor atual.
   const [amount, setAmount] = useState(() => (balance > 0 ? String(balance) : ""));
-  const update = useUpdateOrder();
+  const addPayment = useAddPayment();
 
   const amountNow = parseFloat(amount) || 0;
   const newReceived = alreadyReceived + amountNow;
@@ -49,14 +49,8 @@ function MarkPaidModal({
       toast.error("Informe o valor recebido");
       return;
     }
-    update.mutate(
-      {
-        id: order.id,
-        payment_status: newStatus,
-        payment_method: method,
-        payment_amount: newReceived,
-        payment_date: new Date().toISOString(),
-      },
+    addPayment.mutate(
+      { orderId: order.id, amount: amountNow, method },
       {
         onSuccess: () => {
           toast.success(
@@ -120,7 +114,7 @@ function MarkPaidModal({
           </div>
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button onClick={handleConfirm} disabled={update.isPending}>
+            <Button onClick={handleConfirm} disabled={addPayment.isPending}>
               <CheckCircle2 className="h-4 w-4 mr-1" /> Confirmar
             </Button>
           </div>

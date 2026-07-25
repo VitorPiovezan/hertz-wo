@@ -50,6 +50,26 @@ create policy "Users can manage values of their orders" on order_values for all 
   exists (select 1 from service_orders where id = order_id and user_id = auth.uid())
 );
 
+-- Order Payments (histórico: um registro por valor recebido)
+-- service_orders.payment_amount continua guardando o total recebido, mantido em
+-- sincronia com a soma daqui pelo app. Ver src/lib/migrations/001_order_payments.sql
+create table order_payments (
+  id uuid primary key default uuid_generate_v4(),
+  order_id uuid references service_orders(id) on delete cascade,
+  amount numeric(10,2) not null,
+  method text check (method in ('pix','card','cash')),
+  paid_at timestamptz not null default now(),
+  notes text,
+  created_at timestamptz default now()
+);
+create index order_payments_order_id_idx on order_payments(order_id);
+alter table order_payments enable row level security;
+create policy "Users can manage payments of their orders" on order_payments for all using (
+  exists (select 1 from service_orders where id = order_id and user_id = auth.uid())
+) with check (
+  exists (select 1 from service_orders where id = order_id and user_id = auth.uid())
+);
+
 -- Order Messages
 create table order_messages (
   id uuid primary key default uuid_generate_v4(),

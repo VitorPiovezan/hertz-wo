@@ -15,7 +15,8 @@ import { OrderStatusBadge, PaymentStatusBadge, DeadlineBadge } from "@/component
 import { OrderForm } from "@/components/orders/OrderForm";
 import { OrderChat } from "@/components/orders/OrderChat";
 import { CompleteOrderModal } from "@/components/orders/CompleteOrderModal";
-import { useOrders, useOrder, useUpdateOrder, useDeleteOrder } from "@/hooks/useOrders";
+import { OrderPaymentsEditor } from "@/components/orders/OrderPaymentsEditor";
+import { useOrders, useOrder, useUpdateOrder, useDeleteOrder, useAddPayment } from "@/hooks/useOrders";
 import { formatCurrency, formatDate, formatRelative, sumValues, orderReceived, remainingBalance, ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from "@/lib/utils";
 
 function orderIdLabel(order: import("@/types").ServiceOrder) {
@@ -40,7 +41,7 @@ function OrderDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const { data: order, isLoading } = useOrder(id);
   const update = useUpdateOrder();
   const remove = useDeleteOrder();
-  const router = useRouter();
+  const addPayment = useAddPayment();
 
   const total = sumValues(order?.values ?? []);
   const nextStatus = order ? STATUS_FLOW[STATUS_FLOW.indexOf(order.status) + 1] : null;
@@ -54,8 +55,18 @@ function OrderDetail({ id, onBack }: { id: string; onBack: () => void }) {
   };
 
   const handleComplete = (paymentData: { payment_status: PaymentStatus; payment_method?: PaymentMethod; payment_amount?: number; payment_notes?: string; payment_date?: string }) => {
-    update.mutate({ id, status: "completed", ...paymentData }, {
-      onSuccess: () => { toast.success("OS concluída"); setCompleteOpen(false); },
+    // payment_amount fica de fora daqui de propósito: quem registra o dinheiro é
+    // o addPayment abaixo, que grava o lançamento e recalcula o resumo da OS.
+    // Gravar o valor nos dois lugares dobraria o recebido no caminho legado.
+    const { payment_amount, payment_method, ...rest } = paymentData;
+    update.mutate({ id, status: "completed", ...rest, payment_method }, {
+      onSuccess: () => {
+        if (payment_amount && payment_amount > 0) {
+          addPayment.mutate({ orderId: id, amount: payment_amount, method: payment_method });
+        }
+        toast.success("OS concluída");
+        setCompleteOpen(false);
+      },
       onError: () => toast.error("Erro ao concluir OS"),
     });
   };
@@ -192,6 +203,7 @@ function OrderDetail({ id, onBack }: { id: string; onBack: () => void }) {
             }}
             loading={update.isPending}
           />
+          {order.status === "completed" && <OrderPaymentsEditor order={order} />}
         </DialogContent>
       </Dialog>
 
@@ -320,7 +332,16 @@ function OrdensPageInner() {
   const selectedId = searchParams.get("id");
 
   const handleSelect = (id: string) => router.push(`?id=${id}`);
-  const handleBack = () => router.push("/ordens");
+
+  // Volta para de onde o usuário veio (Início, Cobranças, Concluídos...).
+  // Só cai na lista de OSs quando não há histórico — ex.: link aberto direto.
+  const handleBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push("/ordens");
+  };
 
   return (
     <AuthGuard>
